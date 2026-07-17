@@ -198,6 +198,7 @@ export function stopMusic(fade = 0.35) {
   const nodes = musicNodes;
   musicNodes = null;
   if (nodes.timer) clearInterval(nodes.timer);
+  if (nodes.arpTimer) clearInterval(nodes.arpTimer);
   if (ctx && musicBus) {
     const t = ctx.currentTime;
     try {
@@ -210,159 +211,284 @@ export function stopMusic(fade = 0.35) {
     for (const o of nodes.osc || []) {
       try { o.stop(); o.disconnect(); } catch { /* ignore */ }
     }
+    for (const n of nodes.graph || []) {
+      try { n.disconnect(); } catch { /* ignore */ }
+    }
   }, fade * 1000 + 40);
 }
 
+/**
+ * Furi / Carpenter Brut–inspired synthwave beds.
+ * Detuned saws, minor progressions, 16th arps, sidechain pump, delay.
+ */
 export function startMusic(style = 'mission') {
   musicStyle = style;
   if (!musicOn) return;
   unlock();
   if (!ctx) return;
 
-  stopMusic(0.12);
-
+  stopMusic(0.1);
   if (muted) return;
 
   const t0 = ctx.currentTime;
   musicBus.gain.cancelScheduledValues(t0);
   musicBus.gain.setValueAtTime(0.0001, t0);
-  const targetVol = style === 'boss' ? 0.3 : style === 'title' ? 0.17 : style === 'win' ? 0.24 : 0.22;
-  musicBus.gain.linearRampToValueAtTime(targetVol, t0 + 0.45);
+  const targetVol =
+    style === 'boss' ? 0.34 :
+    style === 'title' ? 0.2 :
+    style === 'win' ? 0.26 : 0.28;
+  musicBus.gain.linearRampToValueAtTime(targetVol, t0 + 0.55);
 
+  // Dark synthwave progressions (Hz roots)
   const progs = {
-    title: [110, 130.81, 98, 146.83],
-    mission: [82.41, 98, 87.31, 110],
-    boss: [55, 58.27, 61.74, 65.41],
-    win: [130.81, 164.81, 196, 246.94],
+    // Am → F → G → Em energy
+    title:   [110.0, 87.31, 98.0, 82.41],
+    // Furi-ish boss rush: low A → C → G → E
+    mission: [55.0, 65.41, 49.0, 41.2],
+    // Drop-tuned dread
+    boss:    [46.25, 49.0, 43.65, 36.71],
+    // Lifted major-ish victory
+    win:     [130.81, 164.81, 98.0, 146.83],
   };
-  const chords = {
-    title: [0, 3, 7, 10],
-    mission: [0, 3, 7, 12],
-    boss: [0, 1, 6, 7],
-    win: [0, 4, 7, 12],
+  // Scale degrees for arp / lead (semitones from root)
+  const arps = {
+    title:   [0, 3, 7, 12, 10, 7, 3, 7],
+    mission: [0, 3, 7, 12, 15, 12, 10, 7],
+    boss:    [0, 1, 5, 7, 12, 7, 6, 5],
+    win:     [0, 4, 7, 12, 16, 12, 7, 4],
   };
   const prog = progs[style] || progs.mission;
-  const intervals = chords[style] || chords.mission;
-  const bpm = style === 'boss' ? 96 : style === 'win' ? 122 : style === 'title' ? 88 : 108;
+  const arpPat = arps[style] || arps.mission;
+  const bpm =
+    style === 'boss' ? 128 :
+    style === 'win' ? 132 :
+    style === 'title' ? 100 : 118;
   const beat = 60 / bpm;
+  const sixteenth = beat / 4;
 
+  // ── FX graph: filter → delay → musicBus ──
   const filter = ctx.createBiquadFilter();
   filter.type = 'lowpass';
-  filter.frequency.value = style === 'boss' ? 420 : 900;
-  filter.Q.value = 5;
-  filter.connect(musicBus);
+  filter.frequency.value = style === 'boss' ? 520 : style === 'win' ? 1600 : 1100;
+  filter.Q.value = style === 'boss' ? 8 : 4;
 
-  const bass = ctx.createOscillator();
-  bass.type = 'sawtooth';
-  bass.frequency.value = prog[0];
-  const bassG = ctx.createGain();
-  bassG.gain.value = 0.13;
-  bass.connect(bassG);
-  bassG.connect(filter);
-  bass.start(t0);
+  const delay = ctx.createDelay(1.0);
+  delay.delayTime.value = style === 'boss' ? 0.23 : 0.19;
+  const delayFb = ctx.createGain();
+  delayFb.gain.value = 0.32;
+  const delayWet = ctx.createGain();
+  delayWet.gain.value = style === 'title' ? 0.18 : 0.28;
+  const dry = ctx.createGain();
+  dry.gain.value = 0.85;
 
-  const lead = ctx.createOscillator();
-  lead.type = style === 'win' ? 'triangle' : 'square';
-  lead.frequency.value = prog[0] * 2;
-  const leadG = ctx.createGain();
-  leadG.gain.value = 0.0001;
-  lead.connect(leadG);
-  leadG.connect(filter);
-  lead.start(t0);
+  // sidechain bus (ducks on kick)
+  const pump = ctx.createGain();
+  pump.gain.value = 1;
 
-  const pad = ctx.createOscillator();
-  pad.type = 'triangle';
-  pad.frequency.value = prog[0] * 1.5;
-  const padG = ctx.createGain();
-  padG.gain.value = 0.045;
-  pad.connect(padG);
-  padG.connect(filter);
-  pad.start(t0);
+  filter.connect(pump);
+  pump.connect(dry);
+  dry.connect(musicBus);
+  pump.connect(delay);
+  delay.connect(delayWet);
+  delayWet.connect(musicBus);
+  delay.connect(delayFb);
+  delayFb.connect(delay);
 
-  const hatBuf = ctx.createBuffer(1, Math.floor(ctx.sampleRate * 0.04), ctx.sampleRate);
-  {
-    const d = hatBuf.getChannelData(0);
-    for (let i = 0; i < d.length; i++) d[i] = (Math.random() * 2 - 1) * Math.exp(-i / (d.length * 0.25));
+  const graph = [filter, delay, delayFb, delayWet, dry, pump];
+  const osc = [];
+
+  function mkOsc(type, freq, gainVal, dest) {
+    const o = ctx.createOscillator();
+    o.type = type;
+    o.frequency.value = freq;
+    const g = ctx.createGain();
+    g.gain.value = gainVal;
+    o.connect(g);
+    g.connect(dest);
+    o.start(t0);
+    osc.push(o);
+    return { o, g };
   }
 
-  let step = 0;
-  const osc = [bass, lead, pad];
+  // Sub sine + mid saw bass (French electro weight)
+  const sub = mkOsc('sine', prog[0], style === 'boss' ? 0.22 : 0.16, filter);
+  const bass = mkOsc('sawtooth', prog[0], 0.1, filter);
+  const bass2 = mkOsc('sawtooth', prog[0] * 1.005, 0.06, filter); // slight detune
 
-  const timer = setInterval(() => {
+  // Dual detuned saw leads (Carpenter Brut-ish)
+  const leadOct = style === 'boss' ? 3 : 2;
+  const leadA = mkOsc('sawtooth', prog[0] * leadOct, 0.0001, filter);
+  const leadB = mkOsc('sawtooth', prog[0] * leadOct * 1.007, 0.0001, filter);
+  // Square fifth for bite
+  const leadC = mkOsc('square', prog[0] * leadOct * Math.pow(2, 7 / 12), 0.0001, filter);
+
+  // Warm pad
+  const pad = mkOsc('triangle', prog[0] * 2, style === 'win' ? 0.07 : 0.04, filter);
+  const pad2 = mkOsc('sawtooth', prog[0] * 2 * 1.003, 0.025, filter);
+
+  // Noise buffer for hats / snare / risers
+  const nLen = Math.floor(ctx.sampleRate * 0.15);
+  const hatBuf = ctx.createBuffer(1, nLen, ctx.sampleRate);
+  {
+    const d = hatBuf.getChannelData(0);
+    for (let i = 0; i < d.length; i++) d[i] = (Math.random() * 2 - 1) * Math.exp(-i / (nLen * 0.12));
+  }
+  const snareBuf = ctx.createBuffer(1, Math.floor(ctx.sampleRate * 0.12), ctx.sampleRate);
+  {
+    const d = snareBuf.getChannelData(0);
+    for (let i = 0; i < d.length; i++) d[i] = (Math.random() * 2 - 1) * Math.exp(-i / (d.length * 0.08));
+  }
+
+  function playNoise(buf, t, vol, type, freq, dur = 0.08) {
+    const src = ctx.createBufferSource();
+    src.buffer = buf;
+    const g = ctx.createGain();
+    g.gain.setValueAtTime(vol, t);
+    g.gain.exponentialRampToValueAtTime(0.001, t + dur);
+    const f = ctx.createBiquadFilter();
+    f.type = type;
+    f.frequency.value = freq;
+    src.connect(f);
+    f.connect(g);
+    g.connect(musicBus);
+    src.start(t);
+    src.stop(t + dur + 0.02);
+  }
+
+  function kick(t, heavy = false) {
+    const k = ctx.createOscillator();
+    const kg = ctx.createGain();
+    k.type = 'sine';
+    const f0 = heavy ? 68 : 95;
+    k.frequency.setValueAtTime(f0, t);
+    k.frequency.exponentialRampToValueAtTime(32, t + 0.14);
+    kg.gain.setValueAtTime(heavy ? 0.32 : 0.24, t);
+    kg.gain.exponentialRampToValueAtTime(0.001, t + 0.16);
+    k.connect(kg);
+    kg.connect(musicBus); // kick stays dry / full
+    k.start(t);
+    k.stop(t + 0.18);
+    // sidechain duck
+    try {
+      pump.gain.cancelScheduledValues(t);
+      pump.gain.setValueAtTime(0.25, t);
+      pump.gain.linearRampToValueAtTime(1, t + (heavy ? 0.22 : 0.16));
+    } catch { /* ignore */ }
+  }
+
+  let step = 0; // 16th notes
+  const arpTimer = setInterval(() => {
     if (!musicNodes || !ctx || muted) return;
     if (ctx.state === 'suspended') ctx.resume().catch(() => {});
     const t = ctx.currentTime;
-    const root = prog[Math.floor(step / 4) % prog.length];
-    const deg = intervals[step % intervals.length];
-    const freq = root * Math.pow(2, deg / 12);
+    const bar = Math.floor(step / 16);
+    const root = prog[bar % prog.length];
+    const deg = arpPat[step % arpPat.length];
+    const note = root * Math.pow(2, deg / 12);
+    const leadF = note * (style === 'boss' ? 2 : 2);
 
     try {
-      bass.frequency.setTargetAtTime(root, t, 0.04);
-      lead.frequency.setTargetAtTime(freq * 2, t, 0.012);
-      pad.frequency.setTargetAtTime(root * Math.pow(2, intervals[2] / 12), t, 0.08);
+      // Bass follows root (octave)
+      sub.o.frequency.setTargetAtTime(root, t, 0.03);
+      bass.o.frequency.setTargetAtTime(root * 2, t, 0.025);
+      bass2.o.frequency.setTargetAtTime(root * 2 * 1.005, t, 0.025);
+      pad.o.frequency.setTargetAtTime(root * 2 * Math.pow(2, 3 / 12), t, 0.1);
+      pad2.o.frequency.setTargetAtTime(root * 2 * Math.pow(2, 7 / 12) * 1.003, t, 0.1);
 
-      leadG.gain.cancelScheduledValues(t);
-      leadG.gain.setValueAtTime(0.0001, t);
-      leadG.gain.linearRampToValueAtTime(style === 'title' ? 0.055 : 0.085, t + 0.015);
-      leadG.gain.exponentialRampToValueAtTime(0.0001, t + beat * 0.8);
+      // Arp pluck every 16th (gate pattern for groove)
+      const gate =
+        style === 'title' ? (step % 2 === 0) :
+        style === 'win' ? true :
+        // mission: gallop 1-0-1-1
+        [1, 0, 1, 1][step % 4];
 
-      const baseF = style === 'boss' ? 380 : style === 'win' ? 1400 : 820;
-      filter.frequency.setTargetAtTime(baseF + (step % 2 === 0 ? 380 : 0), t, 0.05);
+      const leadVol =
+        style === 'boss' ? 0.07 :
+        style === 'title' ? 0.045 :
+        style === 'win' ? 0.06 : 0.065;
+      const fifthVol = style === 'boss' ? 0.035 : 0.02;
 
-      // kick
+      if (gate) {
+        leadA.o.frequency.setValueAtTime(leadF, t);
+        leadB.o.frequency.setValueAtTime(leadF * 1.007, t);
+        leadC.o.frequency.setValueAtTime(leadF * Math.pow(2, 7 / 12), t);
+        for (const g of [leadA.g, leadB.g]) {
+          g.gain.cancelScheduledValues(t);
+          g.gain.setValueAtTime(0.0001, t);
+          g.gain.linearRampToValueAtTime(leadVol, t + 0.008);
+          g.gain.exponentialRampToValueAtTime(0.0001, t + sixteenth * 0.85);
+        }
+        leadC.g.gain.cancelScheduledValues(t);
+        leadC.g.gain.setValueAtTime(0.0001, t);
+        leadC.g.gain.linearRampToValueAtTime(fifthVol, t + 0.008);
+        leadC.g.gain.exponentialRampToValueAtTime(0.0001, t + sixteenth * 0.7);
+      }
+
+      // Filter sweep / pump motion
+      const baseF =
+        style === 'boss' ? 480 :
+        style === 'win' ? 1800 :
+        style === 'title' ? 900 : 1000;
+      const sweep = Math.sin(step * 0.2) * (style === 'boss' ? 500 : 350);
+      const open = (step % 16 < 12) ? 1 : 0.55; // close filter end of bar
+      filter.frequency.setTargetAtTime((baseF + sweep) * open, t, 0.04);
+      filter.Q.setTargetAtTime(style === 'boss' ? 9 : 3.5 + (step % 8 === 0 ? 3 : 0), t, 0.05);
+
+      // Drums on 16ths → quarter resolution
       if (step % 4 === 0) {
-        const k = ctx.createOscillator();
-        const kg = ctx.createGain();
-        k.type = 'sine';
-        k.frequency.setValueAtTime(style === 'boss' ? 72 : 105, t);
-        k.frequency.exponentialRampToValueAtTime(38, t + 0.12);
-        kg.gain.setValueAtTime(0.2, t);
-        kg.gain.exponentialRampToValueAtTime(0.001, t + 0.14);
-        k.connect(kg);
-        kg.connect(musicBus);
-        k.start(t);
-        k.stop(t + 0.15);
+        const beatN = (step / 4) % 4;
+        if (beatN === 0 || beatN === 2 || style === 'boss') {
+          kick(t, style === 'boss' || beatN === 0);
+        }
+        // open hat on off-beats
+        if (beatN === 1 || beatN === 3) {
+          playNoise(hatBuf, t, style === 'boss' ? 0.07 : 0.05, 'highpass', 7000, 0.05);
+        }
+        // snare backbeat
+        if (beatN === 2) {
+          playNoise(snareBuf, t, style === 'win' ? 0.08 : 0.1, 'bandpass', 2200, 0.1);
+          // clap layer
+          playNoise(hatBuf, t + 0.01, 0.05, 'highpass', 3000, 0.06);
+        }
       }
 
-      // hat / snare click
-      if (step % 2 === 1 || style === 'boss') {
-        const src = ctx.createBufferSource();
-        src.buffer = hatBuf;
-        const hg = ctx.createGain();
-        hg.gain.value = 0.055;
-        const hf = ctx.createBiquadFilter();
-        hf.type = 'highpass';
-        hf.frequency.value = 5500;
-        src.connect(hf);
-        hf.connect(hg);
-        hg.connect(musicBus);
-        src.start(t);
-      }
-
-      // snare on 2 and 4
-      if (step % 4 === 2) {
-        noise(0.08, 0.07, 'bandpass', 1800);
+      // Boss riser every 2 bars
+      if (style === 'boss' && step % 32 === 28) {
+        const r = ctx.createOscillator();
+        const rg = ctx.createGain();
+        r.type = 'sawtooth';
+        r.frequency.setValueAtTime(80, t);
+        r.frequency.exponentialRampToValueAtTime(600, t + sixteenth * 4);
+        rg.gain.setValueAtTime(0.01, t);
+        rg.gain.linearRampToValueAtTime(0.08, t + sixteenth * 3.5);
+        rg.gain.exponentialRampToValueAtTime(0.001, t + sixteenth * 4);
+        r.connect(rg);
+        rg.connect(filter);
+        r.start(t);
+        r.stop(t + sixteenth * 4.1);
       }
     } catch { /* teardown race */ }
 
     step += 1;
-  }, beat * 1000);
+  }, sixteenth * 1000);
 
-  musicNodes = { osc, timer };
+  musicNodes = { osc, graph, arpTimer, timer: null };
 }
 
 // ─── SFX ────────────────────────────────────────────────────────────
 export const sfx = {
   shoot() {
     unlock();
-    tone(920, 0.05, 'square', 0.11, -520);
-    tone(1400, 0.03, 'square', 0.05, -800);
-    noise(0.035, 0.07, 'highpass', 1200);
+    // cart laser — synthwave zap
+    tone(1100, 0.045, 'sawtooth', 0.1, -700);
+    tone(1600, 0.03, 'square', 0.06, -900);
+    noise(0.03, 0.06, 'highpass', 1800);
   },
   hit() {
     unlock();
-    tone(210, 0.07, 'sawtooth', 0.14, -90);
-    noise(0.05, 0.1, 'bandpass', 900);
+    tone(240, 0.06, 'sawtooth', 0.13, -100);
+    tone(180, 0.08, 'square', 0.08, -60);
+    noise(0.05, 0.09, 'bandpass', 1100);
   },
   hurt() {
     unlock();
