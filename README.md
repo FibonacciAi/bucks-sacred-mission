@@ -33,10 +33,12 @@ Grounded in the [@activistJ741 / eBuck](https://x.com) game idea post. Cult clas
 | K | Wing dash |
 | ESC | Pause |
 
-Touch: dedicated left, right, jump, fire, dash, and pause controls. Every
-control tracks its own pointer, so movement and multiple actions work together
-with true multitouch. Portrait uses a tighter player-follow camera; landscape
-opens the full-width view.
+Touch uses two large thumb surfaces instead of buttons. Drag anywhere on the
+left surface for analog movement. Hold anywhere on the right to fire, swipe up
+to jump, swipe sideways to dash in that direction, and swipe down to pause.
+Every finger is tracked independently, so movement, firing, and gestures work
+together with true multitouch. Portrait uses a tighter player-follow camera;
+landscape opens the full-width view.
 
 ## Play
 
@@ -54,8 +56,11 @@ Then visit `http://localhost:8765`.
 
 - Procedural WebAudio SFX + mission beds (title / mission / boss / win)
 - Title opener clip: `assets/audio/fury_opener.mp3` (from FibonacciAi/42069 `Fury.mp3`)
-- Music and SFX unlock on the first valid tap/key gesture and recover after tab
-  restores or interrupted mobile audio sessions; mute persists in localStorage
+- The Furi opener attempts audible autoplay immediately on the title screen.
+  If a browser rejects autoplay, the first valid gesture retries the Furi clip
+  rather than skipping to synth music. The synth bed begins only after the clip
+  completes or gameplay starts. Audio recovers after tab restores; mute persists
+  in localStorage.
 
 ## Stack
 

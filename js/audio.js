@@ -76,8 +76,6 @@ export function muteToggle() {
   }
   if (muted) {
     // keep nodes but silent via master
-  } else if (musicOn && !musicNodes && !isOpenerPlaying()) {
-    startMusic(musicStyle);
   }
   return muted;
 }
@@ -129,14 +127,16 @@ export function stopOpener() {
 
 /**
  * Play the Fury meme opener once (title sting).
- * Calls onEnd when finished (or immediately if unavailable / already played / muted).
+ * Calls onEnd only after a real completion (or when already completed).
+ * Calls onBlocked when unavailable, muted, or rejected by autoplay policy.
  */
-export function playOpener({ force = false, onEnd } = {}) {
+export function playOpener({ force = false, onEnd, onBlocked } = {}) {
   unlock();
   if (!openerEl || !openerReady || muted) {
-    onEnd?.();
+    onBlocked?.();
     return false;
   }
+  if (isOpenerPlaying()) return true;
   if (openerPlayed && !force) {
     onEnd?.();
     return false;
@@ -151,6 +151,13 @@ export function playOpener({ force = false, onEnd } = {}) {
     if (openerEl) openerEl.onended = null;
     onEnd?.();
   };
+  const blocked = () => {
+    if (finished) return;
+    finished = true;
+    openerStarting = false;
+    if (openerEl) openerEl.onended = null;
+    onBlocked?.();
+  };
   try {
     openerEl.muted = muted;
     openerEl.currentTime = 0;
@@ -161,14 +168,14 @@ export function playOpener({ force = false, onEnd } = {}) {
       p.then(() => {
         openerPlayed = true;
         openerStarting = false;
-      }).catch(finish);
+      }).catch(blocked);
     } else {
       openerPlayed = true;
       openerStarting = false;
     }
     return true;
   } catch {
-    finish();
+    blocked();
     return false;
   }
 }

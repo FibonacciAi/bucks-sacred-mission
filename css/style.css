@@ -665,54 +665,155 @@ h1 {
     z-index: 8;
     grid-row: 3;
     display: flex;
-    align-items: center;
+    align-items: stretch;
     justify-content: space-between;
-    gap: 0.65rem;
-    min-height: 108px;
-    padding: 0.65rem max(0.65rem, env(safe-area-inset-right, 0px)) max(0.65rem, env(safe-area-inset-bottom, 0px)) max(0.65rem, env(safe-area-inset-left, 0px));
+    gap: 0.55rem;
+    min-height: 150px;
+    padding: 0.55rem max(0.55rem, env(safe-area-inset-right, 0px)) max(0.55rem, env(safe-area-inset-bottom, 0px)) max(0.55rem, env(safe-area-inset-left, 0px));
     background: linear-gradient(180deg, rgba(2, 4, 10, 0.84), rgba(2, 4, 10, 0.99));
     border-top: 1px solid rgba(77, 225, 255, 0.22);
     touch-action: none;
   }
-  .touch-cluster { display: flex; align-items: center; gap: 0.5rem; }
-  .touch-actions { justify-content: flex-end; }
-  .touch-control,
-  .touch-pause {
-    appearance: none;
-    border: 1px solid rgba(151, 189, 255, 0.38);
+  .touch-surface {
+    position: relative;
+    flex: 1 1 0;
+    min-width: 0;
+    min-height: 128px;
+    overflow: hidden;
+    border: 1px solid rgba(151, 189, 255, 0.32);
+    border-radius: 26px;
     color: #eff6ff;
-    background: linear-gradient(180deg, rgba(37, 53, 86, 0.95), rgba(12, 20, 39, 0.98));
-    box-shadow: inset 0 1px 0 rgba(255,255,255,0.12), 0 6px 18px rgba(0,0,0,0.28);
-    font-family: "Orbitron", sans-serif;
+    background:
+      radial-gradient(circle at 50% 120%, rgba(77, 225, 255, 0.16), transparent 58%),
+      linear-gradient(160deg, rgba(28, 43, 74, 0.92), rgba(9, 15, 31, 0.98));
+    box-shadow: inset 0 1px 0 rgba(255,255,255,0.1), 0 8px 24px rgba(0,0,0,0.25);
     touch-action: none;
   }
-  .touch-control {
-    width: clamp(58px, 17vw, 72px);
-    height: clamp(62px, 18vw, 76px);
-    border-radius: 18px;
+  .action-surface {
+    border-color: rgba(255, 77, 154, 0.42);
+    background:
+      radial-gradient(circle at 50% 120%, rgba(255, 77, 154, 0.18), transparent 58%),
+      linear-gradient(160deg, rgba(56, 27, 62, 0.94), rgba(13, 14, 32, 0.98));
+  }
+  .touch-surface::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    box-shadow: inset 0 0 0 0 rgba(77,225,255,0);
+    transition: box-shadow 0.16s ease, background 0.16s ease;
+    pointer-events: none;
+  }
+  .touch-surface.is-active::after {
+    box-shadow: inset 0 0 34px rgba(77,225,255,0.18);
+  }
+  .action-surface.is-active::after {
+    box-shadow: inset 0 0 34px rgba(255,77,154,0.22);
+  }
+  .surface-title {
+    position: absolute;
+    top: 0.62rem;
+    left: 0.75rem;
+    right: 0.75rem;
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 0.4rem;
+    font-family: "Orbitron", sans-serif;
+    pointer-events: none;
+  }
+  .surface-title b { font-size: 0.62rem; letter-spacing: 0.12em; }
+  .surface-title span { font-size: 0.5rem; letter-spacing: 0.05em; color: #8390ad; }
+  .move-guide {
+    position: absolute;
+    inset: 2.25rem 0.85rem 0.65rem;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    color: rgba(190, 218, 255, 0.62);
+    font-family: "Orbitron", sans-serif;
+    pointer-events: none;
+  }
+  .move-guide span { font-size: 1.8rem; }
+  .move-guide em { font-style: normal; font-size: 0.62rem; letter-spacing: 0.2em; opacity: 0.7; }
+  .move-origin {
+    position: absolute;
+    left: 50%;
+    top: 64%;
+    width: 82px;
+    height: 82px;
+    display: none;
+    border: 1px solid rgba(77, 225, 255, 0.5);
+    border-radius: 50%;
+    transform: translate(-50%, -50%);
+    background: rgba(7, 18, 35, 0.68);
+    box-shadow: 0 0 28px rgba(77, 225, 255, 0.16);
+    pointer-events: none;
+  }
+  .move-surface.is-active .move-origin { display: block; }
+  .move-surface.is-active .move-guide { opacity: 0.2; }
+  .move-stick {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    width: 46px;
+    height: 46px;
+    border-radius: 50%;
+    transform: translate(-50%, -50%);
+    background: radial-gradient(circle at 35% 30%, #a8f1ff, #3f7fbb 52%, #172742 100%);
+    box-shadow: 0 4px 14px rgba(0,0,0,0.5), 0 0 18px rgba(77,225,255,0.35);
+  }
+  .gesture-map {
+    position: absolute;
+    inset: 2.05rem 0.65rem 0.55rem;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    grid-template-rows: 1fr 1fr;
+    align-items: center;
+    justify-items: center;
+    font-family: "Orbitron", sans-serif;
+    color: rgba(228, 234, 255, 0.76);
+    pointer-events: none;
+  }
+  .gesture-map span { font-size: 0.72rem; }
+  .gesture-map em { font-style: normal; font-size: 0.48rem; letter-spacing: 0.08em; }
+  .gesture-map strong {
+    grid-column: 1 / -1;
+    grid-row: 1 / -1;
+    font-size: 0.68rem;
+    letter-spacing: 0.08em;
+    color: #ffd9ea;
+    text-shadow: 0 0 16px rgba(255,77,154,0.6);
+  }
+  .gesture-jump { align-self: start; grid-column: 1; grid-row: 1; }
+  .gesture-dash { align-self: start; grid-column: 2; grid-row: 1; }
+  .gesture-pause { align-self: end; grid-column: 2; grid-row: 2; opacity: 0.65; }
+  .gesture-feedback {
+    position: absolute;
+    inset: 0;
+    z-index: 3;
     display: grid;
     place-items: center;
-    align-content: center;
-    gap: 0.12rem;
+    color: #fff;
+    font-family: "Orbitron", sans-serif;
+    font-size: 0.82rem;
+    letter-spacing: 0.08em;
+    opacity: 0;
+    transform: scale(0.88);
+    transition: opacity 0.12s ease, transform 0.12s ease;
+    pointer-events: none;
   }
-  .touch-control span { font-size: 1.35rem; line-height: 1; }
-  .touch-control small { font-size: 0.5rem; letter-spacing: 0.08em; color: #9eabc8; }
-  .touch-control.fire { border-color: rgba(255, 77, 154, 0.62); }
-  .touch-control.jump { border-color: rgba(77, 225, 255, 0.62); }
-  .touch-control.dash { border-color: rgba(255, 209, 102, 0.62); }
-  .touch-control.is-pressed {
-    transform: translateY(2px) scale(0.96);
-    filter: brightness(1.35);
-    box-shadow: inset 0 0 22px rgba(77, 225, 255, 0.22);
-  }
-  .touch-pause {
+  .gesture-feedback.show { opacity: 1; transform: scale(1); }
+  .touch-trace {
     position: absolute;
-    top: -46px;
-    right: 0.65rem;
-    width: 40px;
-    height: 40px;
-    border-radius: 12px;
-    font-size: 0.8rem;
+    z-index: 2;
+    width: 54px;
+    height: 54px;
+    border-radius: 50%;
+    transform: translate(-50%, -50%);
+    background: radial-gradient(circle, rgba(255,255,255,0.48), rgba(255,77,154,0.2) 42%, transparent 72%);
+    box-shadow: 0 0 24px rgba(255,77,154,0.38);
+    pointer-events: none;
   }
   .pause-hint { display: none; }
   .toast {
@@ -725,9 +826,10 @@ h1 {
 }
 
 @media (max-width: 380px) {
-  .touch-control { width: 56px; height: 62px; border-radius: 16px; }
-  .touch-cluster { gap: 0.32rem; }
-  #touch-controls { gap: 0.35rem; padding-inline: 0.45rem; }
+  #touch-controls { gap: 0.4rem; padding-inline: 0.42rem; }
+  .touch-surface { border-radius: 22px; }
+  .surface-title span { display: none; }
+  .gesture-map strong { font-size: 0.6rem; }
   .pill { letter-spacing: 0; }
 }
 
@@ -752,21 +854,26 @@ h1 {
   #touch-controls {
     position: absolute;
     inset: auto 0 env(safe-area-inset-bottom, 0px) 0;
-    min-height: 96px;
+    min-height: 128px;
     padding: 0.45rem max(0.65rem, env(safe-area-inset-right, 0px)) max(0.45rem, env(safe-area-inset-bottom, 0px)) max(0.65rem, env(safe-area-inset-left, 0px));
     background: linear-gradient(180deg, transparent, rgba(0,0,0,0.66));
     border: 0;
     pointer-events: none;
   }
-  .touch-control,
-  .touch-pause { pointer-events: auto; }
-  .touch-control { width: 64px; height: 64px; border-radius: 50%; background: rgba(10, 19, 37, 0.8); }
-  .touch-pause { top: 4.1rem; }
+  .touch-surface {
+    flex: 0 1 250px;
+    min-height: 112px;
+    max-width: 250px;
+    border-radius: 28px;
+    pointer-events: auto;
+    opacity: 0.8;
+  }
+  .touch-surface.is-active { opacity: 1; }
 }
 
 @media (max-height: 560px) and (orientation: portrait) {
   #hud { gap: 0.2rem; padding-block: 0.35rem; }
   .hud-center { display: none; }
-  #touch-controls { min-height: 90px; padding-block: 0.35rem; }
-  .touch-control { height: 58px; }
+  #touch-controls { min-height: 118px; padding-block: 0.35rem; }
+  .touch-surface { min-height: 104px; }
 }

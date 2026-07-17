@@ -31,6 +31,7 @@ export function createGame(canvas, assets, meta) {
     particles: [],
     floating: [],
     camX: 0,
+    moveAxis: 0,
     shake: 0,
     time: 0,
     keys: Object.create(null),
@@ -330,10 +331,13 @@ export function createGame(canvas, assets, meta) {
     const right = G.keys['KeyD'] || G.keys['ArrowRight'];
     const jump = G.keys['KeyW'] || G.keys['Space'] || G.keys['ArrowUp'];
 
-    let ax = 0;
-    if (left) ax -= 1;
-    if (right) ax += 1;
-    if (ax !== 0) p.facing = ax;
+    let ax = Math.max(-1, Math.min(1, G.moveAxis || 0));
+    if (Math.abs(ax) < 0.04) {
+      ax = 0;
+      if (left) ax -= 1;
+      if (right) ax += 1;
+    }
+    if (Math.abs(ax) > 0.05) p.facing = ax < 0 ? -1 : 1;
 
     const target = ax * MOVE * (p.diamondT > 0 ? 1.15 : 1);
     p.vx += (target - p.vx) * Math.min(1, 12 * dt);
@@ -390,14 +394,7 @@ export function createGame(canvas, assets, meta) {
 
     // K activates leftover diamond if any — or just a small dash
     if (G.keys['KeyK'] && !G.keys._kHeld) {
-      if (p.bullishT <= 0 && p.diamondT <= 0) {
-        // short wing dash
-        p.vx = p.facing * 520;
-        p.vy = -120;
-        p.invuln = Math.max(p.invuln, 0.25);
-        spawnParticles(p.x + p.w / 2, p.y + p.h / 2, '#fff', 8, 200);
-        sfx.dash();
-      }
+      dashPlayer(p.facing);
     }
     G.keys._kHeld = !!G.keys['KeyK'];
 
@@ -410,6 +407,18 @@ export function createGame(canvas, assets, meta) {
         G.onEvent?.('levelclear');
       }
     }
+  }
+
+  function dashPlayer(direction = G.player?.facing || 1) {
+    const p = G.player;
+    if (!p || G.paused || G.over || p.bullishT > 0 || p.diamondT > 0) return false;
+    p.facing = direction < 0 ? -1 : 1;
+    p.vx = p.facing * 520;
+    p.vy = -120;
+    p.invuln = Math.max(p.invuln, 0.25);
+    spawnParticles(p.x + p.w / 2, p.y + p.h / 2, '#fff', 8, 200);
+    sfx.dash();
+    return true;
   }
 
   function updateEnemies(dt) {
@@ -987,6 +996,13 @@ export function createGame(canvas, assets, meta) {
     draw,
     getHud,
     setKey(code, down) { G.keys[code] = down; },
+    setMoveAxis(value) {
+      G.moveAxis = Math.max(-1, Math.min(1, Number(value) || 0));
+    },
+    triggerDash(direction) { return dashPlayer(direction); },
+    shoot() {
+      if (!G.paused && !G.over) shootPlayer();
+    },
     setMouse(x, y, down) {
       G.mouse.x = x; G.mouse.y = y;
       if (down !== undefined) G.mouse.down = down;

@@ -63,10 +63,11 @@ function show(name) {
 
 function syncMuteLabels() {
   const audio = getAudioStatus();
-  const label = isMuted() ? 'sound off' : audio.unlocked ? 'sound on' : 'tap sound';
+  const soundActive = audio.playing || audio.unlocked;
+  const label = isMuted() ? 'sound off' : soundActive ? 'sound on' : 'tap sound';
   document.querySelectorAll('[data-mute]').forEach((el) => {
     el.textContent = el.classList.contains('hud-sound')
-      ? (isMuted() ? 'off' : audio.unlocked ? 'on' : 'tap')
+      ? (isMuted() ? 'off' : soundActive ? 'on' : 'tap')
       : label;
     el.setAttribute('aria-pressed', isMuted() ? 'true' : 'false');
   });
@@ -110,7 +111,8 @@ function updateBriefing() {
   const touchMode = window.matchMedia('(hover: none) and (pointer: coarse), (max-width: 900px)').matches;
   const levelTips = touchMode
     ? [
-        'Hold MOVE + JUMP + FIRE together — full multitouch is enabled',
+        'Left thumb: drag to move · Right thumb: hold to fire',
+        'Swipe right side ↑ jump · ↔ dash · ↓ pause — multitouch stays live',
         ...L.tips.map((tip) => tip.replace('J / Click', 'the FIRE button')),
       ]
     : L.tips;
@@ -164,6 +166,7 @@ function startLevel() {
   state.last = performance.now();
   if (!state.raf) loop(state.last);
   sfx.uiOk();
+  openerFinished = true;
   stopOpener();
   const L = LEVELS[state.level];
   startMusic(L?.boss ? 'boss' : 'mission');
@@ -311,28 +314,40 @@ function resizeCanvas() {
 const keyboardKeys = new Set();
 const pointerKeys = new Map();
 const pointersByKey = new Map();
+const pulseCounts = new Map();
+const pulseTimers = new Set();
 let audioGestureSeen = false;
+let openerFinished = false;
 
 function musicForCurrentScreen() {
   if (state.mode === 'game') return LEVELS[state.level]?.boss ? 'boss' : 'mission';
   return 'title';
 }
 
+function finishFuriOpener() {
+  openerFinished = true;
+  if (state.mode !== 'game') ensurePlayback('title');
+  syncMuteLabels();
+}
+
+function tryFuriOpener({ force = false } = {}) {
+  return playOpener({
+    force,
+    onEnd: finishFuriOpener,
+    // Audible autoplay may be blocked by the browser. Stay silent and retry
+    // the real opener on the next gesture instead of substituting synth music.
+    onBlocked: syncMuteLabels,
+  });
+}
+
 function activateAudio({ allowOpener = true } = {}) {
-  const firstGesture = !audioGestureSeen;
   audioGestureSeen = true;
   const resume = unlockAudio();
   const style = musicForCurrentScreen();
 
-  if (firstGesture && allowOpener && state.mode === 'title' && !isMuted()) {
-    const started = playOpener({
-      onEnd: () => {
-        ensurePlayback(musicForCurrentScreen());
-        syncMuteLabels();
-      },
-    });
-    if (!started) ensurePlayback(style);
-  } else if (!isOpenerPlaying()) {
+  if (allowOpener && state.mode === 'title' && !openerFinished && !isMuted()) {
+    tryFuriOpener();
+  } else if (!isOpenerPlaying() && (state.mode === 'game' || openerFinished)) {
     ensurePlayback(style);
   }
 
@@ -344,7 +359,9 @@ function activateAudio({ allowOpener = true } = {}) {
 window.addEventListener('pointerdown', () => activateAudio(), { capture: true, passive: true });
 
 function isKeyHeld(code) {
-  return keyboardKeys.has(code) || (pointersByKey.get(code)?.size || 0) > 0;
+  return keyboardKeys.has(code)
+    || (pointersByKey.get(code)?.size || 0) > 0
+    || (pulseCounts.get(code) || 0) > 0;
 }
 
 function syncGameKey(code) {
@@ -394,12 +411,11 @@ canvas.addEventListener('mousemove', (e) => {
 });
 
 // Independent Pointer Events keep every finger active until that finger lifts.
-function pressPointer(pointerId, code, button) {
+function pressPointer(pointerId, code) {
   if (pointerKeys.has(pointerId)) return;
-  pointerKeys.set(pointerId, { code, button });
+  pointerKeys.set(pointerId, { code });
   if (!pointersByKey.has(code)) pointersByKey.set(code, new Set());
   pointersByKey.get(code).add(pointerId);
-  button.classList.add('is-pressed');
   syncGameKey(code);
 }
 
@@ -411,69 +427,194 @@ function releasePointer(pointerId) {
   ids?.delete(pointerId);
   if (!ids?.size) {
     pointersByKey.delete(held.code);
-    held.button.classList.remove('is-pressed');
   }
   syncGameKey(held.code);
 }
 
-function releaseAllInputs() {
-  const affected = new Set([...keyboardKeys, ...pointersByKey.keys()]);
-  keyboardKeys.clear();
-  pointerKeys.clear();
-  pointersByKey.clear();
-  document.querySelectorAll('.touch-control.is-pressed').forEach((el) => el.classList.remove('is-pressed'));
-  for (const code of affected) state.game?.setKey(code, false);
-  state.game?.setMouse(0, 0, false);
+function pulseKey(code, duration = 120) {
+  pulseCounts.set(code, (pulseCounts.get(code) || 0) + 1);
+  syncGameKey(code);
+  const timer = window.setTimeout(() => {
+    pulseTimers.delete(timer);
+    const next = Math.max(0, (pulseCounts.get(code) || 1) - 1);
+    if (next) pulseCounts.set(code, next);
+    else pulseCounts.delete(code);
+    syncGameKey(code);
+  }, duration);
+  pulseTimers.add(timer);
 }
 
-document.querySelectorAll('.touch-control[data-key]').forEach((button) => {
-  const finish = (e) => {
-    e.preventDefault();
-    releasePointer(e.pointerId);
-  };
-  button.addEventListener('pointerdown', (e) => {
-    e.preventDefault();
-    e.stopPropagation();
-    activateAudio({ allowOpener: false });
-    try { button.setPointerCapture(e.pointerId); } catch { /* unsupported capture */ }
-    pressPointer(e.pointerId, button.dataset.key, button);
-  });
-  button.addEventListener('pointerup', finish);
-  button.addEventListener('pointercancel', finish);
-  button.addEventListener('lostpointercapture', (e) => releasePointer(e.pointerId));
-  button.addEventListener('contextmenu', (e) => e.preventDefault());
-});
+const movePad = $('#move-pad');
+const moveOrigin = $('#move-origin');
+const moveStick = $('#move-stick');
+const actionPad = $('#action-pad');
+const gestureFeedback = $('#gesture-feedback');
+const actionPointers = new Map();
+let movePointerId = null;
+let moveStartX = 0;
+let moveStartY = 0;
+let feedbackTimer = 0;
 
-$('#btn-touch-pause').addEventListener('pointerdown', (e) => {
+function showGesture(label) {
+  gestureFeedback.textContent = label;
+  gestureFeedback.classList.remove('show');
+  void gestureFeedback.offsetWidth;
+  gestureFeedback.classList.add('show');
+  window.clearTimeout(feedbackTimer);
+  feedbackTimer = window.setTimeout(() => gestureFeedback.classList.remove('show'), 360);
+}
+
+function updateMove(e) {
+  if (e.pointerId !== movePointerId) return;
+  const dx = e.clientX - moveStartX;
+  const dy = e.clientY - moveStartY;
+  const raw = Math.max(-1, Math.min(1, dx / 54));
+  const deadzone = 0.1;
+  const magnitude = Math.abs(raw);
+  const axis = magnitude <= deadzone
+    ? 0
+    : Math.sign(raw) * Math.pow((magnitude - deadzone) / (1 - deadzone), 0.72);
+  state.game?.setMoveAxis(axis);
+  const knobX = axis * 27;
+  const knobY = Math.max(-7, Math.min(7, dy * 0.12));
+  moveStick.style.transform = `translate(calc(-50% + ${knobX}px), calc(-50% + ${knobY}px))`;
+}
+
+function releaseMove(pointerId) {
+  if (pointerId !== movePointerId) return;
+  movePointerId = null;
+  state.game?.setMoveAxis(0);
+  movePad.classList.remove('is-active');
+  moveStick.style.transform = '';
+}
+
+movePad.addEventListener('pointerdown', (e) => {
   e.preventDefault();
   e.stopPropagation();
   activateAudio({ allowOpener: false });
-  if (state.game && state.mode === 'game') {
-    state.game.togglePause();
-    sfx.ui();
-  }
+  if (movePointerId !== null) return;
+  movePointerId = e.pointerId;
+  moveStartX = e.clientX;
+  moveStartY = e.clientY;
+  const rect = movePad.getBoundingClientRect();
+  const x = Math.max(44, Math.min(rect.width - 44, e.clientX - rect.left));
+  const y = Math.max(48, Math.min(rect.height - 44, e.clientY - rect.top));
+  moveOrigin.style.left = `${x}px`;
+  moveOrigin.style.top = `${y}px`;
+  movePad.classList.add('is-active');
+  try { movePad.setPointerCapture(e.pointerId); } catch { /* unsupported capture */ }
+  updateMove(e);
 });
+movePad.addEventListener('pointermove', updateMove);
+movePad.addEventListener('pointerup', (e) => { e.preventDefault(); releaseMove(e.pointerId); });
+movePad.addEventListener('pointercancel', (e) => releaseMove(e.pointerId));
+movePad.addEventListener('lostpointercapture', (e) => releaseMove(e.pointerId));
+movePad.addEventListener('contextmenu', (e) => e.preventDefault());
+
+function updateActionTrace(e, pointer) {
+  const rect = actionPad.getBoundingClientRect();
+  pointer.trace.style.left = `${e.clientX - rect.left}px`;
+  pointer.trace.style.top = `${e.clientY - rect.top}px`;
+}
+
+function updateActionGesture(e) {
+  const pointer = actionPointers.get(e.pointerId);
+  if (!pointer) return;
+  updateActionTrace(e, pointer);
+  if (pointer.gesture) return;
+
+  const dx = e.clientX - pointer.startX;
+  const dy = e.clientY - pointer.startY;
+  const ax = Math.abs(dx);
+  const ay = Math.abs(dy);
+  if (dy < -36 && ay > ax * 1.08) {
+    pointer.gesture = 'jump';
+    pulseKey('Space', 130);
+    showGesture('↑ JUMP');
+  } else if (ax > 44 && ax > ay * 1.08) {
+    pointer.gesture = 'dash';
+    state.game?.triggerDash(dx < 0 ? -1 : 1);
+    showGesture(dx < 0 ? '← DASH' : 'DASH →');
+  } else if (dy > 52 && ay > ax * 1.08) {
+    pointer.gesture = 'pause';
+    state.game?.togglePause();
+    sfx.ui();
+    showGesture('Ⅱ PAUSE');
+  }
+}
+
+function releaseAction(pointerId) {
+  const pointer = actionPointers.get(pointerId);
+  if (!pointer) return;
+  actionPointers.delete(pointerId);
+  pointer.trace.remove();
+  releasePointer(pointerId);
+  actionPad.classList.toggle('is-active', actionPointers.size > 0);
+}
+
+actionPad.addEventListener('pointerdown', (e) => {
+  e.preventDefault();
+  e.stopPropagation();
+  activateAudio({ allowOpener: false });
+  const trace = document.createElement('span');
+  trace.className = 'touch-trace';
+  actionPad.appendChild(trace);
+  actionPointers.set(e.pointerId, {
+    startX: e.clientX,
+    startY: e.clientY,
+    gesture: null,
+    trace,
+  });
+  actionPad.classList.add('is-active');
+  pressPointer(e.pointerId, 'KeyJ');
+  state.game?.shoot();
+  try { actionPad.setPointerCapture(e.pointerId); } catch { /* unsupported capture */ }
+  updateActionGesture(e);
+});
+actionPad.addEventListener('pointermove', updateActionGesture);
+actionPad.addEventListener('pointerup', (e) => { e.preventDefault(); releaseAction(e.pointerId); });
+actionPad.addEventListener('pointercancel', (e) => releaseAction(e.pointerId));
+actionPad.addEventListener('lostpointercapture', (e) => releaseAction(e.pointerId));
+actionPad.addEventListener('contextmenu', (e) => e.preventDefault());
+
+function releaseAllInputs() {
+  const affected = new Set([...keyboardKeys, ...pointersByKey.keys(), ...pulseCounts.keys()]);
+  keyboardKeys.clear();
+  pointerKeys.clear();
+  pointersByKey.clear();
+  pulseCounts.clear();
+  for (const timer of pulseTimers) window.clearTimeout(timer);
+  pulseTimers.clear();
+  movePointerId = null;
+  state.game?.setMoveAxis(0);
+  movePad.classList.remove('is-active');
+  moveStick.style.transform = '';
+  for (const pointer of actionPointers.values()) pointer.trace.remove();
+  actionPointers.clear();
+  actionPad.classList.remove('is-active');
+  for (const code of affected) state.game?.setKey(code, false);
+  state.game?.setMouse(0, 0, false);
+}
 
 window.addEventListener('blur', releaseAllInputs);
 document.addEventListener('visibilitychange', () => {
   if (document.hidden) {
     releaseAllInputs();
   } else if (audioGestureSeen && !isMuted()) {
-    ensurePlayback(musicForCurrentScreen()).finally(syncMuteLabels);
+    if (state.mode === 'title' && !openerFinished) tryFuriOpener();
+    else ensurePlayback(musicForCurrentScreen()).finally(syncMuteLabels);
   }
 });
 window.addEventListener('pageshow', () => {
-  if (audioGestureSeen && !isMuted()) ensurePlayback(musicForCurrentScreen()).finally(syncMuteLabels);
+  if (!audioGestureSeen || isMuted()) return;
+  if (state.mode === 'title' && !openerFinished) tryFuriOpener();
+  else ensurePlayback(musicForCurrentScreen()).finally(syncMuteLabels);
 });
 
 // ─── Buttons ───
 $('#btn-start').onclick = () => {
   activateAudio();
   sfx.uiOk();
-  // Fury meme opener once; don't stomp if already playing from first click
-  if (!isOpenerPlaying()) {
-    playOpener({ onEnd: () => startMusic('title') });
-  }
   // fresh run from title unless mid-save
   if (state.level >= LEVELS.length) state.level = 0;
   updateBriefing();
@@ -504,7 +645,11 @@ function onMuteClick() {
   activateAudio({ allowOpener: false });
   const m = muteToggle();
   syncMuteLabels();
-  if (!m) sfx.ui();
+  if (!m) {
+    sfx.ui();
+    if (state.mode === 'title' && !openerFinished) tryFuriOpener({ force: true });
+    else ensurePlayback(musicForCurrentScreen());
+  }
 }
 
 document.querySelectorAll('[data-mute]').forEach((el) => {
@@ -519,7 +664,11 @@ window.addEventListener('resize', resizeCanvas);
   syncMuteLabels();
   // Start media preloading immediately. Never delay the first gesture listener
   // behind asset loading: iOS only grants audio from a live user interaction.
-  loadOpener('assets/audio/fury_opener.mp3');
+  loadOpener('assets/audio/fury_opener.mp3').then((ready) => {
+    // Attempt the real opener immediately. If the browser blocks audible
+    // autoplay, do not replace it with synth; the next gesture retries it.
+    if (ready && state.mode === 'title' && !isMuted()) tryFuriOpener();
+  });
   const btn = $('#btn-start');
   btn.disabled = true;
   btn.textContent = 'LOADING…';
