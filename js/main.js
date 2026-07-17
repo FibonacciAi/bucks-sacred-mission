@@ -2,7 +2,10 @@
  * Buck's Sacred Mission — screens, shop, boot.
  */
 import { loadAll } from './assets.js';
-import { unlock as unlockAudio, muteToggle, isMuted, sfx } from './audio.js';
+import {
+  unlock as unlockAudio, muteToggle, isMuted, sfx,
+  startMusic, stopMusic,
+} from './audio.js';
 import { LEVELS, SHOP_ITEMS, WIN_TEXT, ARMOR } from './data.js';
 import { createGame } from './game.js';
 
@@ -54,6 +57,14 @@ function show(name) {
     el.classList.toggle('hidden', k !== name);
   }
   state.mode = name;
+  syncMuteLabels();
+}
+
+function syncMuteLabels() {
+  const label = isMuted() ? 'muted' : 'sound';
+  document.querySelectorAll('[data-mute]').forEach((el) => {
+    el.textContent = label;
+  });
 }
 
 function showOverlay({ icon, title, body, primary, secondary, onPrimary, onSecondary }) {
@@ -140,7 +151,9 @@ function startLevel() {
   resizeCanvas();
   state.last = performance.now();
   if (!state.raf) loop(state.last);
-  sfx.ui();
+  sfx.uiOk();
+  const L = LEVELS[state.level];
+  startMusic(L?.boss ? 'boss' : 'mission');
 }
 
 function onGameEvent(type) {
@@ -150,6 +163,7 @@ function onGameEvent(type) {
   }
   if (type === 'death') {
     persist();
+    stopMusic(0.5);
     setTimeout(() => {
       showOverlay({
         icon: '💀',
@@ -160,13 +174,15 @@ function onGameEvent(type) {
         onPrimary: () => startLevel(),
         onSecondary: () => {
           show('title');
+          startMusic('title');
           cancelLoop();
         },
       });
     }, 600);
   }
   if (type === 'levelclear') {
-    sfx.win();
+    sfx.levelClear();
+    stopMusic(0.3);
     state.level += 1;
     persist();
     setTimeout(() => {
@@ -180,6 +196,7 @@ function onGameEvent(type) {
   if (type === 'win') {
     state.level = 0;
     persist();
+    startMusic('win');
     setTimeout(() => {
       showOverlay({
         icon: '🎮',
@@ -194,10 +211,12 @@ function onGameEvent(type) {
           persist();
           updateBriefing();
           show('briefing');
+          startMusic('mission');
           cancelLoop();
         },
         onSecondary: () => {
           show('title');
+          startMusic('title');
           cancelLoop();
         },
       });
@@ -209,6 +228,7 @@ function openShop() {
   cancelLoop();
   show('shop');
   renderShop();
+  startMusic('title');
 }
 
 function renderShop() {
@@ -337,7 +357,8 @@ canvas.addEventListener('touchend', () => {
 // ─── Buttons ───
 $('#btn-start').onclick = () => {
   unlockAudio();
-  sfx.ui();
+  sfx.uiOk();
+  startMusic('title');
   // fresh run from title unless mid-save
   if (state.level >= LEVELS.length) state.level = 0;
   updateBriefing();
@@ -346,7 +367,7 @@ $('#btn-start').onclick = () => {
 
 $('#btn-deploy').onclick = () => {
   unlockAudio();
-  sfx.ui();
+  sfx.uiOk();
   startLevel();
   if (state.meta.preHeal && state.game) {
     state.meta.preHeal = false;
@@ -356,7 +377,7 @@ $('#btn-deploy').onclick = () => {
 };
 
 $('#btn-shop-next').onclick = () => {
-  sfx.ui();
+  sfx.uiOk();
   if (state.level >= LEVELS.length) {
     state.level = LEVELS.length - 1;
   }
@@ -364,18 +385,23 @@ $('#btn-shop-next').onclick = () => {
   show('briefing');
 };
 
-$('#btn-mute').onclick = () => {
+function onMuteClick() {
   unlockAudio();
   const m = muteToggle();
-  $('#btn-mute').textContent = m ? 'muted' : 'sound';
-  sfx.ui();
-};
+  syncMuteLabels();
+  if (!m) sfx.ui();
+}
+
+document.querySelectorAll('[data-mute]').forEach((el) => {
+  el.onclick = onMuteClick;
+});
 
 window.addEventListener('resize', resizeCanvas);
 
 // ─── Boot ───
 (async function boot() {
   show('title');
+  syncMuteLabels();
   const btn = $('#btn-start');
   btn.disabled = true;
   btn.textContent = 'LOADING…';
@@ -388,4 +414,13 @@ window.addEventListener('resize', resizeCanvas);
   btn.disabled = false;
   btn.textContent = 'BEGIN MISSION';
   resizeCanvas();
+  // unlock audio on first pointer/key anywhere
+  const arm = () => {
+    unlockAudio();
+    startMusic('title');
+    window.removeEventListener('pointerdown', arm);
+    window.removeEventListener('keydown', arm);
+  };
+  window.addEventListener('pointerdown', arm, { once: true });
+  window.addEventListener('keydown', arm, { once: true });
 })();

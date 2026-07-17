@@ -365,10 +365,12 @@ export function createGame(canvas, assets, meta) {
     }
 
     // collisions
+    const wasGround = p.onGround;
     p.onGround = false;
     const hit = solidAt(p.x, p.y, p.w, p.h, prevBottom, p.vy);
     if (hit) {
       p.y = hit.y;
+      if (!wasGround && p.vy > 200) sfx.land();
       p.vy = 0;
       p.onGround = true;
       p.jumps = 0;
@@ -391,7 +393,7 @@ export function createGame(canvas, assets, meta) {
         p.vy = -120;
         p.invuln = Math.max(p.invuln, 0.25);
         spawnParticles(p.x + p.w / 2, p.y + p.h / 2, '#fff', 8, 200);
-        sfx.jump();
+        sfx.dash();
       }
     }
     G.keys._kHeld = !!G.keys['KeyK'];
@@ -450,6 +452,7 @@ export function createGame(canvas, assets, meta) {
             life: 2.5,
             boss: e.boss,
           });
+          sfx.enemyShoot();
         }
       }
 
