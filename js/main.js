@@ -5,6 +5,7 @@ import { loadAll } from './assets.js';
 import {
   unlock as unlockAudio, muteToggle, isMuted, sfx,
   startMusic, stopMusic, loadOpener, playOpener, stopOpener, isOpenerPlaying,
+  ensurePlayback, getAudioStatus,
 } from './audio.js';
 import { LEVELS, SHOP_ITEMS, WIN_TEXT, ARMOR } from './data.js';
 import { createGame } from './game.js';
@@ -61,9 +62,13 @@ function show(name) {
 }
 
 function syncMuteLabels() {
-  const label = isMuted() ? 'muted' : 'sound';
+  const audio = getAudioStatus();
+  const label = isMuted() ? 'sound off' : audio.unlocked ? 'sound on' : 'tap sound';
   document.querySelectorAll('[data-mute]').forEach((el) => {
-    el.textContent = label;
+    el.textContent = el.classList.contains('hud-sound')
+      ? (isMuted() ? 'off' : audio.unlocked ? 'on' : 'tap')
+      : label;
+    el.setAttribute('aria-pressed', isMuted() ? 'true' : 'false');
   });
 }
 
@@ -102,7 +107,14 @@ function updateBriefing() {
   $('#brief-body').textContent = L.briefing;
   const tips = $('#brief-tips');
   tips.innerHTML = '';
-  for (const t of L.tips) {
+  const touchMode = window.matchMedia('(hover: none) and (pointer: coarse), (max-width: 900px)').matches;
+  const levelTips = touchMode
+    ? [
+        'Hold MOVE + JUMP + FIRE together — full multitouch is enabled',
+        ...L.tips.map((tip) => tip.replace('J / Click', 'the FIRE button')),
+      ]
+    : L.tips;
+  for (const t of levelTips) {
     const li = document.createElement('li');
     li.textContent = t;
     tips.appendChild(li);
@@ -284,21 +296,69 @@ function loop(now) {
 }
 
 function resizeCanvas() {
-  // keep internal res; CSS scales
-  const dpr = Math.min(2, window.devicePixelRatio || 1);
-  // stay at design res for gameplay consistency
-  canvas.width = 1280;
+  const portraitPhone = window.matchMedia('(max-width: 900px) and (orientation: portrait)').matches;
+  // A narrower camera makes characters and hazards readable in portrait,
+  // without stretching sprites or changing the level's physics scale.
+  const logicalWidth = portraitPhone ? 640 : 1280;
+  canvas.style.setProperty('--game-aspect', `${logicalWidth} / 720`);
+  canvas.width = logicalWidth;
   canvas.height = 720;
+  state.game?.setViewport(logicalWidth);
+  state.game?.draw();
 }
 
 // ─── Input ───
+const keyboardKeys = new Set();
+const pointerKeys = new Map();
+const pointersByKey = new Map();
+let audioGestureSeen = false;
+
+function musicForCurrentScreen() {
+  if (state.mode === 'game') return LEVELS[state.level]?.boss ? 'boss' : 'mission';
+  return 'title';
+}
+
+function activateAudio({ allowOpener = true } = {}) {
+  const firstGesture = !audioGestureSeen;
+  audioGestureSeen = true;
+  const resume = unlockAudio();
+  const style = musicForCurrentScreen();
+
+  if (firstGesture && allowOpener && state.mode === 'title' && !isMuted()) {
+    const started = playOpener({
+      onEnd: () => {
+        ensurePlayback(musicForCurrentScreen());
+        syncMuteLabels();
+      },
+    });
+    if (!started) ensurePlayback(style);
+  } else if (!isOpenerPlaying()) {
+    ensurePlayback(style);
+  }
+
+  resume.finally(syncMuteLabels);
+}
+
+// Arm audio from the first interaction anywhere, before a button's click
+// handler or the game asset loader can consume the gesture.
+window.addEventListener('pointerdown', () => activateAudio(), { capture: true, passive: true });
+
+function isKeyHeld(code) {
+  return keyboardKeys.has(code) || (pointersByKey.get(code)?.size || 0) > 0;
+}
+
+function syncGameKey(code) {
+  state.game?.setKey(code, isKeyHeld(code));
+}
+
 window.addEventListener('keydown', (e) => {
   if (['Space', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.code)) {
     e.preventDefault();
   }
-  unlockAudio();
+  activateAudio();
   if (state.game && state.mode === 'game') {
-    state.game.setKey(e.code, true);
+    keyboardKeys.add(e.code);
+    syncGameKey(e.code);
     if (e.code === 'Escape') {
       state.game.togglePause();
       sfx.ui();
@@ -309,11 +369,12 @@ window.addEventListener('keydown', (e) => {
   }
 });
 window.addEventListener('keyup', (e) => {
-  if (state.game) state.game.setKey(e.code, false);
+  keyboardKeys.delete(e.code);
+  syncGameKey(e.code);
 });
 
 canvas.addEventListener('mousedown', (e) => {
-  unlockAudio();
+  activateAudio({ allowOpener: false });
   if (!state.game || state.mode !== 'game') return;
   const r = canvas.getBoundingClientRect();
   state.game.setMouse(
@@ -332,32 +393,82 @@ canvas.addEventListener('mousemove', (e) => {
   );
 });
 
-// touch
-canvas.addEventListener('touchstart', (e) => {
+// Independent Pointer Events keep every finger active until that finger lifts.
+function pressPointer(pointerId, code, button) {
+  if (pointerKeys.has(pointerId)) return;
+  pointerKeys.set(pointerId, { code, button });
+  if (!pointersByKey.has(code)) pointersByKey.set(code, new Set());
+  pointersByKey.get(code).add(pointerId);
+  button.classList.add('is-pressed');
+  syncGameKey(code);
+}
+
+function releasePointer(pointerId) {
+  const held = pointerKeys.get(pointerId);
+  if (!held) return;
+  pointerKeys.delete(pointerId);
+  const ids = pointersByKey.get(held.code);
+  ids?.delete(pointerId);
+  if (!ids?.size) {
+    pointersByKey.delete(held.code);
+    held.button.classList.remove('is-pressed');
+  }
+  syncGameKey(held.code);
+}
+
+function releaseAllInputs() {
+  const affected = new Set([...keyboardKeys, ...pointersByKey.keys()]);
+  keyboardKeys.clear();
+  pointerKeys.clear();
+  pointersByKey.clear();
+  document.querySelectorAll('.touch-control.is-pressed').forEach((el) => el.classList.remove('is-pressed'));
+  for (const code of affected) state.game?.setKey(code, false);
+  state.game?.setMouse(0, 0, false);
+}
+
+document.querySelectorAll('.touch-control[data-key]').forEach((button) => {
+  const finish = (e) => {
+    e.preventDefault();
+    releasePointer(e.pointerId);
+  };
+  button.addEventListener('pointerdown', (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    activateAudio({ allowOpener: false });
+    try { button.setPointerCapture(e.pointerId); } catch { /* unsupported capture */ }
+    pressPointer(e.pointerId, button.dataset.key, button);
+  });
+  button.addEventListener('pointerup', finish);
+  button.addEventListener('pointercancel', finish);
+  button.addEventListener('lostpointercapture', (e) => releasePointer(e.pointerId));
+  button.addEventListener('contextmenu', (e) => e.preventDefault());
+});
+
+$('#btn-touch-pause').addEventListener('pointerdown', (e) => {
   e.preventDefault();
-  unlockAudio();
-  if (!state.game) return;
-  state.game.setKey('KeyJ', true);
-  // tap upper half = jump
-  const t = e.changedTouches[0];
-  const r = canvas.getBoundingClientRect();
-  const y = (t.clientY - r.top) / r.height;
-  const x = (t.clientX - r.left) / r.width;
-  if (y < 0.45) state.game.setKey('Space', true);
-  if (x < 0.35) state.game.setKey('KeyA', true);
-  if (x > 0.65) state.game.setKey('KeyD', true);
-}, { passive: false });
-canvas.addEventListener('touchend', () => {
-  if (!state.game) return;
-  state.game.setKey('KeyJ', false);
-  state.game.setKey('Space', false);
-  state.game.setKey('KeyA', false);
-  state.game.setKey('KeyD', false);
+  e.stopPropagation();
+  activateAudio({ allowOpener: false });
+  if (state.game && state.mode === 'game') {
+    state.game.togglePause();
+    sfx.ui();
+  }
+});
+
+window.addEventListener('blur', releaseAllInputs);
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden) {
+    releaseAllInputs();
+  } else if (audioGestureSeen && !isMuted()) {
+    ensurePlayback(musicForCurrentScreen()).finally(syncMuteLabels);
+  }
+});
+window.addEventListener('pageshow', () => {
+  if (audioGestureSeen && !isMuted()) ensurePlayback(musicForCurrentScreen()).finally(syncMuteLabels);
 });
 
 // ─── Buttons ───
 $('#btn-start').onclick = () => {
-  unlockAudio();
+  activateAudio();
   sfx.uiOk();
   // Fury meme opener once; don't stomp if already playing from first click
   if (!isOpenerPlaying()) {
@@ -370,7 +481,7 @@ $('#btn-start').onclick = () => {
 };
 
 $('#btn-deploy').onclick = () => {
-  unlockAudio();
+  activateAudio({ allowOpener: false });
   sfx.uiOk();
   startLevel();
   if (state.meta.preHeal && state.game) {
@@ -390,7 +501,7 @@ $('#btn-shop-next').onclick = () => {
 };
 
 function onMuteClick() {
-  unlockAudio();
+  activateAudio({ allowOpener: false });
   const m = muteToggle();
   syncMuteLabels();
   if (!m) sfx.ui();
@@ -406,6 +517,9 @@ window.addEventListener('resize', resizeCanvas);
 (async function boot() {
   show('title');
   syncMuteLabels();
+  // Start media preloading immediately. Never delay the first gesture listener
+  // behind asset loading: iOS only grants audio from a live user interaction.
+  loadOpener('assets/audio/fury_opener.mp3');
   const btn = $('#btn-start');
   btn.disabled = true;
   btn.textContent = 'LOADING…';
@@ -418,18 +532,4 @@ window.addEventListener('resize', resizeCanvas);
   btn.disabled = false;
   btn.textContent = 'BEGIN MISSION';
   resizeCanvas();
-  await loadOpener('assets/audio/fury_opener.mp3');
-  // unlock + Fury opener on first gesture
-  const arm = () => {
-    unlockAudio();
-    playOpener({
-      onEnd: () => startMusic('title'),
-    });
-    // if opener skipped (muted), still bed
-    if (isMuted()) startMusic('title');
-    window.removeEventListener('pointerdown', arm);
-    window.removeEventListener('keydown', arm);
-  };
-  window.addEventListener('pointerdown', arm, { once: true });
-  window.addEventListener('keydown', arm, { once: true });
 })();

@@ -33,7 +33,10 @@ Grounded in the [@activistJ741 / eBuck](https://x.com) game idea post. Cult clas
 | K | Wing dash |
 | ESC | Pause |
 
-Touch: left/right thirds move, upper half jump, hold to shoot.
+Touch: dedicated left, right, jump, fire, dash, and pause controls. Every
+control tracks its own pointer, so movement and multiple actions work together
+with true multitouch. Portrait uses a tighter player-follow camera; landscape
+opens the full-width view.
 
 ## Play
 
@@ -51,7 +54,8 @@ Then visit `http://localhost:8765`.
 
 - Procedural WebAudio SFX + mission beds (title / mission / boss / win)
 - Title opener clip: `assets/audio/fury_opener.mp3` (from FibonacciAi/42069 `Fury.mp3`)
-- Click once to unlock audio; mute persists in localStorage
+- Music and SFX unlock on the first valid tap/key gesture and recover after tab
+  restores or interrupted mobile audio sessions; mute persists in localStorage
 
 ## Stack
 
