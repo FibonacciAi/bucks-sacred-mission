@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>BUCK'S SACRED MISSION</title>
+  <link rel="stylesheet" href="css/style.css" />
+  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@600;800;900&family=Rajdhani:wght@500;600;700&display=swap" rel="stylesheet" />
+</head>
+<body>
+  <div id="app">
+    <!-- TITLE -->
+    <section id="title" class="view">
+      <div class="title-bg" style="background-image:url('assets/ui/keyart.jpg')"></div>
+      <div class="title-veil"></div>
+      <div class="title-ui">
+        <p class="eyebrow">corporate espionage · physical media forever</p>
+        <h1>BUCK'S SACRED<br/>MISSION</h1>
+        <p class="lede">
+          The conglomerate wants digital-only forever.<br/>
+          Buck the Bunny has one job: take out the CEO.
+        </p>
+        <div class="title-feats">
+          <span>🎮 Carts</span>
+          <span>💎 Diamond Hands</span>
+          <span>🐂 Bullish</span>
+          <span>📦 Powerpacks</span>
+          <span>🃏 Slabs</span>
+        </div>
+        <button type="button" id="btn-start" class="btn-hero">BEGIN MISSION</button>
+        <p class="fineprint">A / D or ← → move · W / Space jump · J / Click shoot · K special</p>
+      </div>
+    </section>
+
+    <!-- BRIEFING -->
+    <section id="briefing" class="view hidden">
+      <div class="panel">
+        <p class="eyebrow">CLASSIFIED // $GME OPS</p>
+        <h2 id="brief-title">LEVEL 1 — SERVER FARM</h2>
+        <p id="brief-body" class="brief-body"></p>
+        <ul id="brief-tips" class="brief-tips"></ul>
+        <div class="brief-stats">
+          <div><span>HP</span><b id="brief-hp">100</b></div>
+          <div><span>DPS</span><b id="brief-dps">1×</b></div>
+          <div><span>ARMOR</span><b id="brief-armor">None</b></div>
+          <div><span>SLABS</span><b id="brief-slabs">0</b></div>
+        </div>
+        <button type="button" id="btn-deploy" class="btn-hero">DEPLOY BUCK</button>
+      </div>
+    </section>
+
+    <!-- GAME -->
+    <section id="game-view" class="view hidden">
+      <canvas id="game" width="1280" height="720"></canvas>
+      <div id="hud">
+        <div class="hud-left">
+          <div class="bar-wrap">
+            <div class="bar-label">HP</div>
+            <div class="bar"><div id="hp-fill" class="bar-fill hp"></div></div>
+            <div id="hp-text" class="bar-num">100</div>
+          </div>
+          <div class="hud-pills">
+            <div id="pill-diamond" class="pill off">💎 DIAMOND</div>
+            <div id="pill-bullish" class="pill off">🐂 BULLISH</div>
+          </div>
+        </div>
+        <div class="hud-center">
+          <div id="level-name" class="level-name">SERVER FARM</div>
+          <div id="objective" class="objective">Reach the exit →</div>
+        </div>
+        <div class="hud-right">
+          <div class="stat">SLABS <b id="hud-slabs">0</b></div>
+          <div class="stat">SCORE <b id="hud-score">0</b></div>
+          <div class="stat">ARMOR <b id="hud-armor">—</b></div>
+          <button type="button" id="btn-mute" class="link">sound</button>
+        </div>
+      </div>
+      <div id="toast" class="toast hidden"></div>
+      <div id="pause-hint" class="pause-hint">ESC pause</div>
+    </section>
+
+    <!-- SHOP -->
+    <section id="shop" class="view hidden">
+      <div class="panel wide">
+        <p class="eyebrow">ARMORY // UNDERWEAR &amp; SOCKS DIVISION</p>
+        <h2>UPGRADE ARMOR</h2>
+        <p class="lede sm">Spend slabs on legendary undergarments. Fashion is damage reduction.</p>
+        <div class="shop-grid" id="shop-grid"></div>
+        <div class="shop-foot">
+          <div class="stat">YOUR SLABS <b id="shop-slabs">0</b></div>
+          <button type="button" id="btn-shop-next" class="btn-hero">CONTINUE MISSION →</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- PAUSE / DEATH / WIN overlays -->
+    <div id="overlay" class="overlay hidden">
+      <div class="card" id="overlay-card">
+        <div class="card-icon" id="ov-icon">💀</div>
+        <h2 id="ov-title">MISSION FAILED</h2>
+        <p id="ov-body"></p>
+        <div class="card-actions">
+          <button type="button" id="btn-ov-primary" class="btn-hero">RETRY</button>
+          <button type="button" id="btn-ov-secondary" class="btn-ghost">TITLE</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script type="module" src="js/main.js"></script>
+</body>
+</html>
