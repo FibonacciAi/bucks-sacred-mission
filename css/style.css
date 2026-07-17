@@ -128,6 +128,13 @@ h1 {
 }
 .btn-hero:hover { transform: translateY(-2px) scale(1.02); filter: brightness(1.08); }
 .btn-hero:active { transform: translateY(0) scale(0.99); }
+.title-actions {
+  display: flex;
+  gap: 0.7rem;
+  justify-content: center;
+  align-items: center;
+  flex-wrap: wrap;
+}
 .btn-ghost {
   font-family: "Orbitron", sans-serif;
   font-weight: 700;

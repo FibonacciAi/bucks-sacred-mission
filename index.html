@@ -27,8 +27,11 @@
           <span>📦 Powerpacks</span>
           <span>🃏 Slabs</span>
         </div>
-        <button type="button" id="btn-start" class="btn-hero">BEGIN MISSION</button>
-        <p class="fineprint">A / D or ← → move · W / Space jump · J / Click shoot · K special</p>
+        <div class="title-actions">
+          <button type="button" id="btn-start" class="btn-hero">BEGIN MISSION</button>
+          <button type="button" class="btn-ghost" data-mute>sound</button>
+        </div>
+        <p class="fineprint">A / D or ← → move · W / Space jump · J / Click shoot · K special · click once for audio</p>
       </div>
     </section>
 
@@ -45,7 +48,10 @@
           <div><span>ARMOR</span><b id="brief-armor">None</b></div>
           <div><span>SLABS</span><b id="brief-slabs">0</b></div>
         </div>
-        <button type="button" id="btn-deploy" class="btn-hero">DEPLOY BUCK</button>
+        <div class="title-actions">
+          <button type="button" id="btn-deploy" class="btn-hero">DEPLOY BUCK</button>
+          <button type="button" class="btn-ghost" data-mute>sound</button>
+        </div>
       </div>
     </section>
 
@@ -72,7 +78,7 @@
           <div class="stat">SLABS <b id="hud-slabs">0</b></div>
           <div class="stat">SCORE <b id="hud-score">0</b></div>
           <div class="stat">ARMOR <b id="hud-armor">—</b></div>
-          <button type="button" id="btn-mute" class="link">sound</button>
+          <button type="button" class="link" data-mute>sound</button>
         </div>
       </div>
       <div id="toast" class="toast hidden"></div>
@@ -88,7 +94,10 @@
         <div class="shop-grid" id="shop-grid"></div>
         <div class="shop-foot">
           <div class="stat">YOUR SLABS <b id="shop-slabs">0</b></div>
-          <button type="button" id="btn-shop-next" class="btn-hero">CONTINUE MISSION →</button>
+          <div class="title-actions">
+            <button type="button" class="btn-ghost" data-mute>sound</button>
+            <button type="button" id="btn-shop-next" class="btn-hero">CONTINUE MISSION →</button>
+          </div>
         </div>
       </div>
     </section>
