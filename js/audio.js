@@ -11,11 +11,15 @@ let musicOn = true;
 let unlocked = false;
 let musicNodes = null;
 let musicStyle = 'mission';
+let playbackWanted = false;
+let resumePromise = null;
 
 /** HTMLAudio meme opener (~13s Fury clip from user assets) */
 let openerEl = null;
 let openerPlayed = false;
 let openerReady = false;
+let openerStarting = false;
+let openerLoadPromise = null;
 
 const SAVE_MUTE = 'bucks_mute_v1';
 try {
@@ -44,10 +48,17 @@ function ac() {
 
 export function unlock() {
   const c = ac();
-  if (!c) return;
-  if (c.state === 'suspended') c.resume().catch(() => {});
+  if (!c) return Promise.resolve(false);
   unlocked = true;
   if (master) master.gain.value = muted ? 0 : 0.85;
+  if (c.state === 'running') return Promise.resolve(true);
+  if (!resumePromise) {
+    resumePromise = c.resume()
+      .then(() => c.state === 'running')
+      .catch(() => false)
+      .finally(() => { resumePromise = null; });
+  }
+  return resumePromise;
 }
 
 export function muteToggle() {
@@ -73,32 +84,41 @@ export function muteToggle() {
 
 /** Preload the meme opener clip. */
 export function loadOpener(src = 'assets/audio/fury_opener.mp3') {
-  return new Promise((resolve) => {
+  if (openerLoadPromise) return openerLoadPromise;
+  openerLoadPromise = new Promise((resolve) => {
     const a = new Audio();
     a.preload = 'auto';
     a.src = src;
     a.volume = 0.9;
     a.muted = muted;
-    const done = () => {
+    let settled = false;
+    const done = (ready) => {
+      if (settled) return;
+      settled = true;
       openerEl = a;
-      openerReady = true;
-      resolve(true);
+      openerReady = ready;
+      resolve(ready);
     };
-    a.addEventListener('canplaythrough', done, { once: true });
+    // Mobile Safari frequently skips canplaythrough for preloaded media.
+    // loadeddata/canplay are enough because playback can continue buffering.
+    a.addEventListener('loadeddata', () => done(true), { once: true });
+    a.addEventListener('canplay', () => done(true), { once: true });
     a.addEventListener('error', () => {
       console.warn('Opener audio missing:', src);
-      openerReady = false;
-      resolve(false);
-    });
+      done(false);
+    }, { once: true });
     a.load();
+    if (a.readyState >= 2) done(true);
   });
+  return openerLoadPromise;
 }
 
 export function isOpenerPlaying() {
-  return !!(openerEl && !openerEl.paused && !openerEl.ended);
+  return openerStarting || !!(openerEl && !openerEl.paused && !openerEl.ended);
 }
 
 export function stopOpener() {
+  openerStarting = false;
   if (!openerEl) return;
   try {
     openerEl.onended = null;
@@ -121,22 +141,34 @@ export function playOpener({ force = false, onEnd } = {}) {
     onEnd?.();
     return false;
   }
-  openerPlayed = true;
+  if (openerStarting) return true;
   stopMusic(0.05);
+  let finished = false;
+  const finish = () => {
+    if (finished) return;
+    finished = true;
+    openerStarting = false;
+    if (openerEl) openerEl.onended = null;
+    onEnd?.();
+  };
   try {
     openerEl.muted = muted;
     openerEl.currentTime = 0;
-    openerEl.onended = () => {
-      openerEl.onended = null;
-      onEnd?.();
-    };
+    openerEl.onended = finish;
+    openerStarting = true;
     const p = openerEl.play();
-    if (p && typeof p.catch === 'function') {
-      p.catch(() => onEnd?.());
+    if (p && typeof p.then === 'function') {
+      p.then(() => {
+        openerPlayed = true;
+        openerStarting = false;
+      }).catch(finish);
+    } else {
+      openerPlayed = true;
+      openerStarting = false;
     }
     return true;
   } catch {
-    onEnd?.();
+    finish();
     return false;
   }
 }
@@ -193,7 +225,8 @@ function noise(dur = 0.1, vol = 0.15, filterType = 'highpass', filterFreq = 800)
   src.stop(t + dur + 0.02);
 }
 
-export function stopMusic(fade = 0.35) {
+export function stopMusic(fade = 0.35, { keepIntent = false } = {}) {
+  if (!keepIntent) playbackWanted = false;
   if (!musicNodes) return;
   const nodes = musicNodes;
   musicNodes = null;
@@ -223,12 +256,51 @@ export function stopMusic(fade = 0.35) {
  */
 export function startMusic(style = 'mission') {
   musicStyle = style;
-  if (!musicOn) return;
-  unlock();
-  if (!ctx) return;
+  playbackWanted = true;
+  if (!musicOn || muted || isOpenerPlaying()) return false;
+  const c = ac();
+  if (!c) return false;
 
-  stopMusic(0.1);
-  if (muted) return;
+  const launch = () => {
+    if (!playbackWanted || musicStyle !== style || muted || isOpenerPlaying()) return false;
+    if (c.state !== 'running') return false;
+    if (musicNodes?.style === style) return true;
+    buildMusic(style);
+    return true;
+  };
+
+  const resumed = unlock();
+  if (c.state === 'running') return launch();
+  resumed.then((ok) => { if (ok) launch(); });
+  return false;
+}
+
+/** Resume the desired music after a gesture, tab restore, or interrupted audio session. */
+export function ensurePlayback(style = musicStyle) {
+  musicStyle = style;
+  playbackWanted = true;
+  const resumed = unlock();
+  if (!muted && !isOpenerPlaying()) startMusic(style);
+  resumed.then((ok) => {
+    if (ok && !muted && !isOpenerPlaying() && playbackWanted) startMusic(musicStyle);
+  });
+  return resumed;
+}
+
+export function getAudioStatus() {
+  return {
+    muted,
+    unlocked: !!(ctx && ctx.state === 'running'),
+    playing: isOpenerPlaying() || !!musicNodes,
+    style: musicStyle,
+  };
+}
+
+function buildMusic(style) {
+  if (!ctx || ctx.state !== 'running' || muted) return;
+
+  stopMusic(0.1, { keepIntent: true });
+  playbackWanted = true;
 
   const t0 = ctx.currentTime;
   musicBus.gain.cancelScheduledValues(t0);
@@ -472,7 +544,7 @@ export function startMusic(style = 'mission') {
     step += 1;
   }, sixteenth * 1000);
 
-  musicNodes = { osc, graph, arpTimer, timer: null };
+  musicNodes = { osc, graph, arpTimer, timer: null, style };
 }
 
 // ─── SFX ────────────────────────────────────────────────────────────

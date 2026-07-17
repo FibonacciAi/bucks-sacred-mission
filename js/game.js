@@ -5,7 +5,7 @@
 import { LEVELS, ENEMY_STATS, ARMOR } from './data.js';
 import { sfx } from './audio.js';
 
-const W = 1280;
+const DEFAULT_W = 1280;
 const H = 720;
 const GRAV = 2200;
 const MOVE = 340;
@@ -15,6 +15,9 @@ const MAX_HP = 100;
 
 export function createGame(canvas, assets, meta) {
   const ctx = canvas.getContext('2d');
+  // The physics world stays 720px tall, while the visible camera narrows in
+  // phone portrait mode so the action remains large and readable.
+  let W = DEFAULT_W;
   const G = {
     assets,
     meta, // { armor, slabs, score, dpsMul, owned }
@@ -952,7 +955,7 @@ export function createGame(canvas, assets, meta) {
       ctx.fillText('PAUSED', W / 2, H / 2);
       ctx.font = '16px Rajdhani, sans-serif';
       ctx.fillStyle = '#aaa';
-      ctx.fillText('ESC to resume', W / 2, H / 2 + 36);
+      ctx.fillText('ESC or pause button to resume', W / 2, H / 2 + 36);
       ctx.textAlign = 'left';
     }
 
@@ -977,7 +980,8 @@ export function createGame(canvas, assets, meta) {
 
   // public API
   return {
-    W, H,
+    get W() { return W; },
+    H,
     loadLevel,
     update,
     draw,
@@ -986,6 +990,11 @@ export function createGame(canvas, assets, meta) {
     setMouse(x, y, down) {
       G.mouse.x = x; G.mouse.y = y;
       if (down !== undefined) G.mouse.down = down;
+    },
+    setViewport(width) {
+      W = Math.max(640, Math.min(DEFAULT_W, Math.round(width || DEFAULT_W)));
+      canvas.width = W;
+      canvas.height = H;
     },
     togglePause() {
       if (G.over) return;

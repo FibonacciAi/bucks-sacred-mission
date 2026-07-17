@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
   <title>BUCK'S SACRED MISSION</title>
   <link rel="stylesheet" href="css/style.css" />
   <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@600;800;900&family=Rajdhani:wght@500;600;700&display=swap" rel="stylesheet" />
@@ -31,7 +31,8 @@
           <button type="button" id="btn-start" class="btn-hero">BEGIN MISSION</button>
           <button type="button" class="btn-ghost" data-mute>sound</button>
         </div>
-        <p class="fineprint">A / D or ← → move · W / Space jump · J / Click shoot · K special · click once for audio</p>
+        <p class="fineprint desktop-hint">A / D or ← → move · W / Space jump · J / Click shoot · K special</p>
+        <p class="fineprint touch-hint">Move, jump, fire, and dash at the same time with the on-screen controls.</p>
       </div>
     </section>
 
@@ -57,7 +58,6 @@
 
     <!-- GAME -->
     <section id="game-view" class="view hidden">
-      <canvas id="game" width="1280" height="720"></canvas>
       <div id="hud">
         <div class="hud-left">
           <div class="bar-wrap">
@@ -78,8 +78,33 @@
           <div class="stat">SLABS <b id="hud-slabs">0</b></div>
           <div class="stat">SCORE <b id="hud-score">0</b></div>
           <div class="stat">ARMOR <b id="hud-armor">—</b></div>
-          <button type="button" class="link" data-mute>sound</button>
+          <button type="button" class="link hud-sound" data-mute aria-label="Toggle sound">sound</button>
         </div>
+      </div>
+      <div class="game-stage">
+        <canvas id="game" width="1280" height="720" aria-label="Buck's Sacred Mission gameplay"></canvas>
+      </div>
+      <div id="touch-controls" aria-label="Touch game controls">
+        <div class="touch-cluster touch-move" aria-label="Movement controls">
+          <button type="button" class="touch-control move" data-key="KeyA" aria-label="Move left">
+            <span aria-hidden="true">←</span><small>MOVE</small>
+          </button>
+          <button type="button" class="touch-control move" data-key="KeyD" aria-label="Move right">
+            <span aria-hidden="true">→</span><small>MOVE</small>
+          </button>
+        </div>
+        <div class="touch-cluster touch-actions" aria-label="Action controls">
+          <button type="button" class="touch-control dash" data-key="KeyK" aria-label="Dash special">
+            <span aria-hidden="true">✦</span><small>DASH</small>
+          </button>
+          <button type="button" class="touch-control jump" data-key="Space" aria-label="Jump">
+            <span aria-hidden="true">↑</span><small>JUMP</small>
+          </button>
+          <button type="button" class="touch-control fire" data-key="KeyJ" aria-label="Fire">
+            <span aria-hidden="true">●</span><small>FIRE</small>
+          </button>
+        </div>
+        <button type="button" id="btn-touch-pause" class="touch-pause" aria-label="Pause game">Ⅱ</button>
       </div>
       <div id="toast" class="toast hidden"></div>
       <div id="pause-hint" class="pause-hint">ESC pause</div>
