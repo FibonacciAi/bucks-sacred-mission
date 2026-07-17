@@ -1,6 +1,6 @@
 /**
- * Buck's Sacred Mission — WebAudio SFX + procedural mission music.
- * No external audio files. Unlock on first user gesture.
+ * Buck's Sacred Mission — WebAudio SFX + procedural mission music
+ * + optional Fury meme opener clip (assets/audio/fury_opener.mp3).
  */
 let ctx = null;
 let master = null;
@@ -11,6 +11,11 @@ let musicOn = true;
 let unlocked = false;
 let musicNodes = null;
 let musicStyle = 'mission';
+
+/** HTMLAudio meme opener (~13s Fury clip from user assets) */
+let openerEl = null;
+let openerPlayed = false;
+let openerReady = false;
 
 const SAVE_MUTE = 'bucks_mute_v1';
 try {
@@ -54,12 +59,86 @@ export function muteToggle() {
     master.gain.cancelScheduledValues(now);
     master.gain.setTargetAtTime(muted ? 0 : 0.85, now, 0.03);
   }
+  if (openerEl) {
+    openerEl.muted = muted;
+    if (muted) openerEl.pause();
+  }
   if (muted) {
     // keep nodes but silent via master
-  } else if (musicOn && !musicNodes) {
+  } else if (musicOn && !musicNodes && !isOpenerPlaying()) {
     startMusic(musicStyle);
   }
   return muted;
+}
+
+/** Preload the meme opener clip. */
+export function loadOpener(src = 'assets/audio/fury_opener.mp3') {
+  return new Promise((resolve) => {
+    const a = new Audio();
+    a.preload = 'auto';
+    a.src = src;
+    a.volume = 0.9;
+    a.muted = muted;
+    const done = () => {
+      openerEl = a;
+      openerReady = true;
+      resolve(true);
+    };
+    a.addEventListener('canplaythrough', done, { once: true });
+    a.addEventListener('error', () => {
+      console.warn('Opener audio missing:', src);
+      openerReady = false;
+      resolve(false);
+    });
+    a.load();
+  });
+}
+
+export function isOpenerPlaying() {
+  return !!(openerEl && !openerEl.paused && !openerEl.ended);
+}
+
+export function stopOpener() {
+  if (!openerEl) return;
+  try {
+    openerEl.onended = null;
+    openerEl.pause();
+    openerEl.currentTime = 0;
+  } catch { /* ignore */ }
+}
+
+/**
+ * Play the Fury meme opener once (title sting).
+ * Calls onEnd when finished (or immediately if unavailable / already played / muted).
+ */
+export function playOpener({ force = false, onEnd } = {}) {
+  unlock();
+  if (!openerEl || !openerReady || muted) {
+    onEnd?.();
+    return false;
+  }
+  if (openerPlayed && !force) {
+    onEnd?.();
+    return false;
+  }
+  openerPlayed = true;
+  stopMusic(0.05);
+  try {
+    openerEl.muted = muted;
+    openerEl.currentTime = 0;
+    openerEl.onended = () => {
+      openerEl.onended = null;
+      onEnd?.();
+    };
+    const p = openerEl.play();
+    if (p && typeof p.catch === 'function') {
+      p.catch(() => onEnd?.());
+    }
+    return true;
+  } catch {
+    onEnd?.();
+    return false;
+  }
 }
 
 export function isMuted() {

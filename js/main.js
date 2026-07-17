@@ -4,7 +4,7 @@
 import { loadAll } from './assets.js';
 import {
   unlock as unlockAudio, muteToggle, isMuted, sfx,
-  startMusic, stopMusic,
+  startMusic, stopMusic, loadOpener, playOpener, stopOpener, isOpenerPlaying,
 } from './audio.js';
 import { LEVELS, SHOP_ITEMS, WIN_TEXT, ARMOR } from './data.js';
 import { createGame } from './game.js';
@@ -152,6 +152,7 @@ function startLevel() {
   state.last = performance.now();
   if (!state.raf) loop(state.last);
   sfx.uiOk();
+  stopOpener();
   const L = LEVELS[state.level];
   startMusic(L?.boss ? 'boss' : 'mission');
 }
@@ -358,7 +359,10 @@ canvas.addEventListener('touchend', () => {
 $('#btn-start').onclick = () => {
   unlockAudio();
   sfx.uiOk();
-  startMusic('title');
+  // Fury meme opener once; don't stomp if already playing from first click
+  if (!isOpenerPlaying()) {
+    playOpener({ onEnd: () => startMusic('title') });
+  }
   // fresh run from title unless mid-save
   if (state.level >= LEVELS.length) state.level = 0;
   updateBriefing();
@@ -414,10 +418,15 @@ window.addEventListener('resize', resizeCanvas);
   btn.disabled = false;
   btn.textContent = 'BEGIN MISSION';
   resizeCanvas();
-  // unlock audio on first pointer/key anywhere
+  await loadOpener('assets/audio/fury_opener.mp3');
+  // unlock + Fury opener on first gesture
   const arm = () => {
     unlockAudio();
-    startMusic('title');
+    playOpener({
+      onEnd: () => startMusic('title'),
+    });
+    // if opener skipped (muted), still bed
+    if (isMuted()) startMusic('title');
     window.removeEventListener('pointerdown', arm);
     window.removeEventListener('keydown', arm);
   };
