@@ -35,9 +35,11 @@ Grounded in the [@activistJ741 / eBuck](https://x.com) game idea post. Cult clas
 
 Touch: left/right thirds move, upper half jump, hold to shoot.
 
-## Run
+## Play
 
-Open `index.html` in a browser, or from this folder:
+**Live:** [https://fibonacciai.github.io/bucks-sacred-mission/](https://fibonacciai.github.io/bucks-sacred-mission/)
+
+Local:
 
 ```bash
 python3 -m http.server 8765
