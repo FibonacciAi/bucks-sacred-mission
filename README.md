@@ -47,6 +47,12 @@ python3 -m http.server 8765
 
 Then visit `http://localhost:8765`.
 
+## Audio
+
+- Procedural WebAudio SFX + mission beds (title / mission / boss / win)
+- Title opener clip: `assets/audio/fury_opener.mp3` (from FibonacciAi/42069 `Fury.mp3`)
+- Click once to unlock audio; mute persists in localStorage
+
 ## Stack
 
 Pure HTML / CSS / Canvas JS. No build step. Art generated from the Buck key art + mission vibe.
