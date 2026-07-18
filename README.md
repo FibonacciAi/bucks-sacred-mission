@@ -22,13 +22,18 @@ Grounded in the [@activistJ741 / eBuck](https://x.com) game idea post. Cult clas
 1. **Server Farm** — Operation Bitrot
 2. **Cartridge Plant** — Operation Hard Copy
 3. **Conglomerate HQ** — Operation Forced Update
-4. **Acquisitions Floor** — Operation Hostile Takeover
-5. **Penthouse Boardroom** — Sacred Mission (CEO boss)
+4. **Legal Vault** — Operation Fine Print
+5. **Acquisitions Floor** — Operation Hostile Takeover
+6. **Trading Floor** — Operation Paper Hands
+7. **Executive Skybridge** — Operation Kill Switch
+8. **Penthouse Boardroom** — Sacred Mission (CEO boss)
 
-The added chapters extend the original corporate-espionage arc rather than
-branching into a separate universe: shut down the physical-media shredders,
-then break the hostile acquisition pipeline on the way to the CEO. The plant
-introduces moving conveyor floors; later missions add reinforced elite enemies.
+One continuous corporate-espionage arc: shut down the physical-media shredders,
+breach the tower, crack the contract vault, break hostile acquisitions, ride
+the shareholder pit, cross the glass skybridge, then take the CEO.
+
+Hazard progression: conveyors (plant / trading floor) → vault lasers → elite
+density (acquisitions) → skybridge laser gauntlet → boss.
 
 ## Controls
 
