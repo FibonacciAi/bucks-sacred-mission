@@ -22,11 +22,21 @@ const overlay = $('#overlay');
 const canvas = $('#game');
 
 const SAVE = 'bucks_sacred_v1';
+const CAMPAIGN_VERSION = 2;
 function loadSave() {
-  try { return JSON.parse(localStorage.getItem(SAVE) || '{}'); } catch { return {}; }
+  try {
+    const saved = JSON.parse(localStorage.getItem(SAVE) || '{}');
+    if (saved.campaignVersion !== CAMPAIGN_VERSION) {
+      // Existing players enter at the first added chapter instead of skipping it.
+      saved.level = Number(saved.level) > 0 ? 1 : 0;
+      saved.campaignVersion = CAMPAIGN_VERSION;
+    }
+    return saved;
+  } catch { return {}; }
 }
 function persist() {
   localStorage.setItem(SAVE, JSON.stringify({
+    campaignVersion: CAMPAIGN_VERSION,
     level: state.level,
     slabs: state.meta.slabs,
     score: state.meta.score,

@@ -33,8 +33,10 @@ export async function loadAll() {
     lawyer: 'assets/enemies/lawyer.png',
     ceo: 'assets/enemies/ceo.png',
     bg0: 'assets/bg/server_farm.jpg',
-    bg1: 'assets/bg/hq_lobby.jpg',
-    bg2: 'assets/bg/boardroom.jpg',
+    bg1: 'assets/bg/cartridge_plant.jpg',
+    bg2: 'assets/bg/hq_lobby.jpg',
+    bg3: 'assets/bg/acquisitions_floor.jpg',
+    bg4: 'assets/bg/boardroom.jpg',
     keyart: 'assets/ui/keyart.jpg',
   };
 

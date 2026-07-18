@@ -19,9 +19,16 @@ Grounded in the [@activistJ741 / eBuck](https://x.com) game idea post. Cult clas
 
 ## Levels
 
-1. **Server Farm** — Operation Bitrot  
-2. **Conglomerate HQ** — Operation Forced Update  
-3. **Penthouse Boardroom** — Sacred Mission (CEO boss)
+1. **Server Farm** — Operation Bitrot
+2. **Cartridge Plant** — Operation Hard Copy
+3. **Conglomerate HQ** — Operation Forced Update
+4. **Acquisitions Floor** — Operation Hostile Takeover
+5. **Penthouse Boardroom** — Sacred Mission (CEO boss)
+
+The added chapters extend the original corporate-espionage arc rather than
+branching into a separate universe: shut down the physical-media shredders,
+then break the hostile acquisition pipeline on the way to the CEO. The plant
+introduces moving conveyor floors; later missions add reinforced elite enemies.
 
 ## Controls
 
