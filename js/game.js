@@ -117,14 +117,19 @@ export function createGame(canvas, assets, meta) {
 
   function makeEnemy(spec) {
     const st = ENEMY_STATS[spec.type];
+    const elite = !!spec.elite && !st.boss;
+    const hp = Math.round(st.hp * (elite ? 1.7 : 1));
     const e = {
       type: spec.type,
       x: spec.x,
       y: spec.y || G.level.floorY - st.h,
       w: st.w,
       h: st.h,
-      hp: st.hp,
-      maxHp: st.hp,
+      hp,
+      maxHp: hp,
+      speed: st.speed * (elite ? 1.08 : 1),
+      damage: Math.round(st.damage * (elite ? 1.18 : 1)),
+      score: Math.round(st.score * (elite ? 2.5 : 1)),
       vx: 0,
       vy: 0,
       facing: -1,
@@ -135,6 +140,7 @@ export function createGame(canvas, assets, meta) {
       phaseT: 0,
       fly: !!st.fly,
       boss: !!st.boss,
+      elite,
       bob: Math.random() * Math.PI * 2,
     };
     if (e.fly) e.y = spec.y || 280;
@@ -272,12 +278,11 @@ export function createGame(canvas, assets, meta) {
   function killEnemy(e) {
     e.alive = false;
     e.hp = 0;
-    const st = ENEMY_STATS[e.type];
-    G.meta.score += st.score;
+    G.meta.score += e.score;
     sfx.explode();
     G.shake = e.boss ? 22 : 8;
     spawnParticles(e.x + e.w / 2, e.y + e.h / 2, e.boss ? '#ffd166' : '#4de1ff', e.boss ? 40 : 16, 280);
-    floatText(e.x + e.w / 2, e.y, `+${st.score}`, '#ffd166');
+    floatText(e.x + e.w / 2, e.y, `+${e.score}`, '#ffd166');
     // occasional powerpack drop for playability
     if (!e.boss && Math.random() < 0.28) {
       G.pickups.push({
@@ -421,6 +426,18 @@ export function createGame(canvas, assets, meta) {
     return true;
   }
 
+  function updateHazards(dt) {
+    const p = G.player;
+    for (const h of G.level.hazards || []) {
+      if (h.type !== 'conveyor' || !p.onGround) continue;
+      const overlaps = p.x + p.w > h.x && p.x < h.x + h.w;
+      const onFloor = p.y + p.h >= G.level.floorY - 4;
+      if (!overlaps || !onFloor) continue;
+      p.x += h.dir * h.force * dt;
+      p.x = Math.max(0, Math.min(G.level.width - p.w, p.x));
+    }
+  }
+
   function updateEnemies(dt) {
     const p = G.player;
     for (const e of G.enemies) {
@@ -436,11 +453,11 @@ export function createGame(canvas, assets, meta) {
         e.x += Math.sin(e.bob * 0.5) * 30 * dt;
         const dx = p.x - e.x;
         e.facing = dx >= 0 ? 1 : -1;
-        e.x += Math.sign(dx) * st.speed * 0.35 * dt;
+        e.x += Math.sign(dx) * e.speed * 0.35 * dt;
       } else {
         const dx = p.x - e.x;
         e.facing = dx >= 0 ? 1 : -1;
-        if (Math.abs(dx) > 40) e.x += Math.sign(dx) * st.speed * dt;
+        if (Math.abs(dx) > 40) e.x += Math.sign(dx) * e.speed * dt;
         // stay on floor
         e.y = G.level.floorY - e.h;
         // simple platform awareness — stay ground mostly
@@ -450,7 +467,7 @@ export function createGame(canvas, assets, meta) {
       if (st.shoot) {
         e.shootCd -= dt;
         if (e.shootCd <= 0 && Math.abs(p.x - e.x) < 700) {
-          e.shootCd = e.boss ? 0.55 : e.type === 'lawyer' ? 1.4 : 1.1;
+          e.shootCd = e.boss ? 0.55 : (e.type === 'lawyer' ? 1.4 : 1.1) * (e.elite ? 0.78 : 1);
           const dir = Math.sign(p.x - e.x) || -1;
           const speed = e.boss ? 380 : 300;
           G.eBullets.push({
@@ -460,7 +477,7 @@ export function createGame(canvas, assets, meta) {
             h: e.boss ? 22 : 14,
             vx: dir * speed,
             vy: e.boss ? (p.y - e.y) * 0.15 : 0,
-            dmg: st.damage,
+            dmg: e.damage,
             life: 2.5,
             boss: e.boss,
           });
@@ -470,7 +487,7 @@ export function createGame(canvas, assets, meta) {
 
       // contact damage (i-frames handle spam; still knock back)
       if (rectsOverlap(p, e) && p.invuln <= 0) {
-        hurtPlayer(st.damage, e.x + e.w / 2);
+        hurtPlayer(e.damage, e.x + e.w / 2);
       }
     }
   }
@@ -624,6 +641,7 @@ export function createGame(canvas, assets, meta) {
       return;
     }
     updatePlayer(dt);
+    updateHazards(dt);
     updateEnemies(dt);
     updateBullets(dt);
     updatePickups(dt);
@@ -729,6 +747,30 @@ export function createGame(canvas, assets, meta) {
     }
   }
 
+  function drawHazards() {
+    const fy = G.level.floorY;
+    for (const h of G.level.hazards || []) {
+      if (h.type !== 'conveyor') continue;
+      const x = worldX(h.x);
+      if (x + h.w < -20 || x > W + 20) continue;
+      ctx.save();
+      ctx.fillStyle = 'rgba(255,91,72,0.22)';
+      ctx.fillRect(x, fy - 14, h.w, 14);
+      ctx.strokeStyle = 'rgba(255,154,61,0.9)';
+      ctx.lineWidth = 2;
+      const offset = (G.time * h.force * 0.7) % 48;
+      for (let px = x - 48 + offset; px < x + h.w + 48; px += 48) {
+        const tip = px + (h.dir > 0 ? 12 : -12);
+        ctx.beginPath();
+        ctx.moveTo(px - h.dir * 8, fy - 11);
+        ctx.lineTo(tip, fy - 7);
+        ctx.lineTo(px - h.dir * 8, fy - 3);
+        ctx.stroke();
+      }
+      ctx.restore();
+    }
+  }
+
   function drawSprite(img, x, y, w, h, flip, flash) {
     if (!img) {
       ctx.fillStyle = flash ? '#fff' : '#ccc';
@@ -806,6 +848,17 @@ export function createGame(canvas, assets, meta) {
       if (x + e.w < -50 || x > W + 50) continue;
       const img = G.assets[e.type];
       const bob = e.fly ? Math.sin(e.bob) * 4 : 0;
+
+      if (e.elite) {
+        ctx.save();
+        ctx.strokeStyle = G.level.accent;
+        ctx.shadowColor = G.level.accent;
+        ctx.shadowBlur = 14;
+        ctx.lineWidth = 2;
+        ctx.globalAlpha = 0.55 + Math.sin(G.time * 6 + e.bob) * 0.18;
+        ctx.strokeRect(x - 5, e.y + bob - 5, e.w + 10, e.h + 10);
+        ctx.restore();
+      }
 
       // boss intro zoom focus ring
       if (e.boss) {
@@ -948,6 +1001,7 @@ export function createGame(canvas, assets, meta) {
     ctx.clearRect(-20, -20, W + 40, H + 40);
     drawBg();
     drawPlatforms();
+    drawHazards();
     drawPickups();
     drawEnemies();
     drawPlayer();
