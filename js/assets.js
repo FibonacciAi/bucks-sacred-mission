@@ -39,7 +39,9 @@ export async function loadAll() {
     bg4: 'assets/bg/acquisitions_floor.jpg',
     bg5: 'assets/bg/trading_floor.jpg',
     bg6: 'assets/bg/executive_skybridge.jpg',
-    bg7: 'assets/bg/boardroom.jpg',
+    bg7: 'assets/bg/rooftop_helipad.jpg',
+    bg8: 'assets/bg/patch_core.jpg',
+    bg9: 'assets/bg/boardroom.jpg',
     keyart: 'assets/ui/keyart.jpg',
   };
 

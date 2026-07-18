@@ -483,23 +483,23 @@ export function createGame(canvas, assets, meta) {
         // simple platform awareness — stay ground mostly
       }
 
-      // shoot
-      if (st.shoot) {
+      // shoot (boss has its own fire patterns in updateBoss)
+      if (st.shoot && !e.boss) {
         e.shootCd -= dt;
         if (e.shootCd <= 0 && Math.abs(p.x - e.x) < 700) {
-          e.shootCd = e.boss ? 0.55 : (e.type === 'lawyer' ? 1.4 : 1.1) * (e.elite ? 0.78 : 1);
+          e.shootCd = (e.type === 'lawyer' ? 1.4 : 1.1) * (e.elite ? 0.78 : 1);
           const dir = Math.sign(p.x - e.x) || -1;
-          const speed = e.boss ? 380 : 300;
+          const speed = 300;
           G.eBullets.push({
             x: e.x + e.w / 2,
             y: e.y + e.h * 0.35,
-            w: e.boss ? 22 : 14,
-            h: e.boss ? 22 : 14,
+            w: 14,
+            h: 14,
             vx: dir * speed,
-            vy: e.boss ? (p.y - e.y) * 0.15 : 0,
+            vy: 0,
             dmg: e.damage,
             life: 2.5,
-            boss: e.boss,
+            boss: false,
           });
           sfx.enemyShoot();
         }
@@ -512,75 +512,193 @@ export function createGame(canvas, assets, meta) {
     }
   }
 
+  function bossBullet(x, y, vx, vy, dmg, size = 16) {
+    G.eBullets.push({
+      x, y, w: size, h: size, vx, vy, dmg, life: 2.4, boss: true,
+    });
+  }
+
+  function bossBurst(e, count, speed, dmg) {
+    const cx = e.x + e.w / 2;
+    const cy = e.y + e.h * 0.35;
+    for (let i = 0; i < count; i++) {
+      const ang = (Math.PI * 2 * i) / count + G.time * 0.4;
+      bossBullet(cx, cy, Math.cos(ang) * speed, Math.sin(ang) * speed, dmg, 14);
+    }
+  }
+
   function updateBoss(e, dt) {
     const p = G.player;
     e.phaseT -= dt;
     const st = ENEMY_STATS.ceo;
+    const hpPct = e.hp / e.maxHp;
+    const rage = e.enraged ? 1.35 : 1;
+    const fury = e.enraged2 ? 1.25 : 1;
+    const mul = rage * fury;
+
+    // continuous tracking fire — denser as HP drops
+    e.shootCd = (e.shootCd || 0) - dt;
+    if (e.shootCd <= 0 && e.phase !== 1 && e.phase !== 3) {
+      e.shootCd = (e.enraged2 ? 0.28 : e.enraged ? 0.38 : 0.48);
+      const dir = Math.sign(p.x - e.x) || -1;
+      const aimY = (p.y + p.h / 2 - (e.y + 40)) * 0.35;
+      bossBullet(e.x + e.w / 2, e.y + 40, dir * 420 * mul, aimY, 20, 18);
+      if (e.enraged) {
+        bossBullet(e.x + e.w / 2, e.y + 50, dir * 380 * mul, aimY - 80, 16, 14);
+        bossBullet(e.x + e.w / 2, e.y + 30, dir * 380 * mul, aimY + 80, 16, 14);
+      }
+    }
 
     if (e.phase === 0) {
-      // patrol / chase
+      // aggressive chase
       const dx = p.x - e.x;
       e.facing = dx >= 0 ? 1 : -1;
-      e.x += Math.sign(dx) * st.speed * dt;
+      e.x += Math.sign(dx) * st.speed * mul * dt;
       e.y = G.level.floorY - e.h;
       if (e.phaseT <= 0) {
-        e.phase = 1;
-        e.phaseT = 1.8;
-        toast('CEO: FORCED DIGITAL UPDATE', 1.2);
+        // pick next attack: slam, laser, charge (charge unlocks after first enrage)
+        const roll = Math.random();
+        if (e.enraged && roll < 0.35) {
+          e.phase = 3;
+          e.phaseT = 1.15;
+          e.facing = Math.sign(p.x - e.x) || 1;
+          toast('CEO: HOSTILE TAKEOVER', 1.1);
+        } else if (roll < 0.55) {
+          e.phase = 1;
+          e.phaseT = 1.55;
+          toast('CEO: FORCED DIGITAL UPDATE', 1.1);
+        } else {
+          e.phase = 2;
+          e.phaseT = e.enraged2 ? 3.2 : 2.6;
+          toast('CEO: PATCH BARRAGE', 1.1);
+        }
       }
     } else if (e.phase === 1) {
-      // slam jump
-      if (e.phaseT > 1.2 && e.phaseT < 1.25) {
-        e.vy = -700;
+      // slam jump + multi shockwave
+      if (e.phaseT > 1.05 && e.phaseT < 1.12) {
+        e.vy = -780;
       }
       e.vy = (e.vy || 0) + GRAV * dt;
       e.y += (e.vy || 0) * dt;
-      e.x += e.facing * 120 * dt;
+      e.x += e.facing * 160 * mul * dt;
       if (e.y >= G.level.floorY - e.h) {
         e.y = G.level.floorY - e.h;
         e.vy = 0;
-        if (e.phaseT < 1.1) {
-          G.shake = 16;
+        if (e.phaseT < 0.95) {
+          G.shake = 20;
           sfx.explode();
-          // shockwave bullets
-          for (const dir of [-1, 1]) {
-            G.eBullets.push({
-              x: e.x + e.w / 2, y: e.y + e.h - 20,
-              w: 28, h: 16, vx: dir * 420, vy: 0, dmg: 20, life: 2, boss: true,
-            });
+          const waves = e.enraged2 ? 3 : e.enraged ? 2 : 1;
+          for (let w = 1; w <= waves; w++) {
+            for (const dir of [-1, 1]) {
+              bossBullet(
+                e.x + e.w / 2,
+                e.y + e.h - 20,
+                dir * (380 + w * 70),
+                0,
+                22 + w * 2,
+                26
+              );
+            }
           }
-          e.phase = 2;
-          e.phaseT = 2.5;
+          // vertical splash
+          for (const ang of [-0.7, -0.35, 0.35, 0.7]) {
+            bossBullet(
+              e.x + e.w / 2,
+              e.y + e.h - 30,
+              Math.cos(ang) * e.facing * 360,
+              Math.sin(ang) * -320,
+              18,
+              14
+            );
+          }
+          e.phase = 0;
+          e.phaseT = Math.max(0.9, 1.8 - (1 - hpPct) * 1.1);
         }
       }
     } else if (e.phase === 2) {
-      // laser barrage
+      // dense aimed laser + ring bursts
       e.y = G.level.floorY - e.h;
-      if (Math.floor(e.phaseT * 4) !== Math.floor((e.phaseT + dt) * 4)) {
+      const rate = e.enraged2 ? 7 : e.enraged ? 5.5 : 4.5;
+      if (Math.floor(e.phaseT * rate) !== Math.floor((e.phaseT + dt) * rate)) {
         const ang = Math.atan2(p.y + p.h / 2 - (e.y + 40), p.x - (e.x + e.w / 2));
-        G.eBullets.push({
-          x: e.x + e.w / 2,
-          y: e.y + 40,
-          w: 16, h: 16,
-          vx: Math.cos(ang) * 440,
-          vy: Math.sin(ang) * 440,
-          dmg: 16, life: 2.2, boss: true,
-        });
+        const spd = 480 * mul;
+        bossBullet(e.x + e.w / 2, e.y + 40, Math.cos(ang) * spd, Math.sin(ang) * spd, 18, 16);
+        bossBullet(
+          e.x + e.w / 2,
+          e.y + 40,
+          Math.cos(ang + 0.22) * spd * 0.92,
+          Math.sin(ang + 0.22) * spd * 0.92,
+          14,
+          12
+        );
+        bossBullet(
+          e.x + e.w / 2,
+          e.y + 40,
+          Math.cos(ang - 0.22) * spd * 0.92,
+          Math.sin(ang - 0.22) * spd * 0.92,
+          14,
+          12
+        );
+      }
+      if (e.phaseT < 1.6 && e.phaseT + dt >= 1.6) {
+        bossBurst(e, e.enraged2 ? 12 : 8, 320, 16);
+        sfx.enemyShoot();
       }
       if (e.phaseT <= 0) {
         e.phase = 0;
-        e.phaseT = 2.5 + (1 - e.hp / e.maxHp) * 1.5;
+        e.phaseT = Math.max(0.75, 1.6 - (1 - hpPct) * 0.9);
+      }
+    } else if (e.phase === 3) {
+      // charge dash across the boardroom
+      e.y = G.level.floorY - e.h;
+      if (e.phaseT > 0.75) {
+        // wind-up
+        e.x += Math.sin(G.time * 40) * 1.5;
+      } else {
+        e.x += e.facing * 780 * mul * dt;
+        if (Math.floor(e.phaseT * 10) !== Math.floor((e.phaseT + dt) * 10)) {
+          bossBullet(e.x + e.w / 2, e.y + e.h * 0.5, -e.facing * 200, -40, 14, 12);
+        }
+      }
+      if (e.phaseT <= 0) {
+        G.shake = 12;
+        sfx.explode();
+        bossBurst(e, 10, 300, 18);
+        e.phase = 0;
+        e.phaseT = Math.max(0.7, 1.4 - (1 - hpPct) * 0.7);
       }
     }
 
-    // enrage at half
-    if (e.hp < e.maxHp * 0.45 && !e.enraged) {
+    // first enrage ~55%
+    if (e.hp < e.maxHp * 0.55 && !e.enraged) {
       e.enraged = true;
+      e.phase = 2;
+      e.phaseT = 2.8;
       toast('CEO ENRAGED — DIAMOND HANDS RECOMMENDED', 2);
       sfx.boss();
+      bossBurst(e, 10, 340, 18);
+      // spawn security adds
+      G.enemies.push(makeEnemy({ type: 'drone', x: e.x - 120, y: 240, elite: true }));
+      G.enemies.push(makeEnemy({ type: 'drone', x: e.x + 160, y: 220, elite: true }));
+      G.enemies.push(makeEnemy({ type: 'lawyer', x: e.x - 200, y: 0 }));
     }
 
-    e.x = Math.max(100, Math.min(G.level.width - e.w - 100, e.x));
+    // second enrage ~28%
+    if (e.hp < e.maxHp * 0.28 && !e.enraged2) {
+      e.enraged2 = true;
+      e.phase = 3;
+      e.phaseT = 1.2;
+      e.facing = Math.sign(p.x - e.x) || 1;
+      toast('CEO FINAL FORM — PHYSICAL MEDIA MUST DIE', 2.2);
+      sfx.boss();
+      bossBurst(e, 14, 380, 20);
+      G.enemies.push(makeEnemy({ type: 'drone', x: 400, y: 230, elite: true }));
+      G.enemies.push(makeEnemy({ type: 'drone', x: 2200, y: 230, elite: true }));
+      G.enemies.push(makeEnemy({ type: 'goon', x: 800, y: 0, elite: true }));
+      G.enemies.push(makeEnemy({ type: 'lawyer', x: 1800, y: 0, elite: true }));
+    }
+
+    e.x = Math.max(80, Math.min(G.level.width - e.w - 80, e.x));
   }
 
   function updateBullets(dt) {
