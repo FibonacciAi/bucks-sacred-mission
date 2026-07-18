@@ -35,8 +35,11 @@ export async function loadAll() {
     bg0: 'assets/bg/server_farm.jpg',
     bg1: 'assets/bg/cartridge_plant.jpg',
     bg2: 'assets/bg/hq_lobby.jpg',
-    bg3: 'assets/bg/acquisitions_floor.jpg',
-    bg4: 'assets/bg/boardroom.jpg',
+    bg3: 'assets/bg/legal_vault.jpg',
+    bg4: 'assets/bg/acquisitions_floor.jpg',
+    bg5: 'assets/bg/trading_floor.jpg',
+    bg6: 'assets/bg/executive_skybridge.jpg',
+    bg7: 'assets/bg/boardroom.jpg',
     keyart: 'assets/ui/keyart.jpg',
   };
 

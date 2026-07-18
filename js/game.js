@@ -426,15 +426,35 @@ export function createGame(canvas, assets, meta) {
     return true;
   }
 
+  function laserActive(h) {
+    const period = h.period || 2.2;
+    const on = h.on != null ? h.on : 1.1;
+    const t = (G.time + (h.phase || 0)) % period;
+    return t < on;
+  }
+
   function updateHazards(dt) {
     const p = G.player;
     for (const h of G.level.hazards || []) {
-      if (h.type !== 'conveyor' || !p.onGround) continue;
-      const overlaps = p.x + p.w > h.x && p.x < h.x + h.w;
-      const onFloor = p.y + p.h >= G.level.floorY - 4;
-      if (!overlaps || !onFloor) continue;
-      p.x += h.dir * h.force * dt;
-      p.x = Math.max(0, Math.min(G.level.width - p.w, p.x));
+      if (h.type === 'conveyor') {
+        if (!p.onGround) continue;
+        const overlaps = p.x + p.w > h.x && p.x < h.x + h.w;
+        const onFloor = p.y + p.h >= G.level.floorY - 4;
+        if (!overlaps || !onFloor) continue;
+        p.x += h.dir * h.force * dt;
+        p.x = Math.max(0, Math.min(G.level.width - p.w, p.x));
+      } else if (h.type === 'laser') {
+        if (!laserActive(h)) continue;
+        const beam = {
+          x: h.x,
+          y: h.y,
+          w: h.w,
+          h: h.h,
+        };
+        if (rectsOverlap(p, beam)) {
+          hurtPlayer(h.damage || 16, h.x + h.w / 2);
+        }
+      }
     }
   }
 
@@ -750,24 +770,60 @@ export function createGame(canvas, assets, meta) {
   function drawHazards() {
     const fy = G.level.floorY;
     for (const h of G.level.hazards || []) {
-      if (h.type !== 'conveyor') continue;
-      const x = worldX(h.x);
-      if (x + h.w < -20 || x > W + 20) continue;
-      ctx.save();
-      ctx.fillStyle = 'rgba(255,91,72,0.22)';
-      ctx.fillRect(x, fy - 14, h.w, 14);
-      ctx.strokeStyle = 'rgba(255,154,61,0.9)';
-      ctx.lineWidth = 2;
-      const offset = (G.time * h.force * 0.7) % 48;
-      for (let px = x - 48 + offset; px < x + h.w + 48; px += 48) {
-        const tip = px + (h.dir > 0 ? 12 : -12);
-        ctx.beginPath();
-        ctx.moveTo(px - h.dir * 8, fy - 11);
-        ctx.lineTo(tip, fy - 7);
-        ctx.lineTo(px - h.dir * 8, fy - 3);
-        ctx.stroke();
+      if (h.type === 'conveyor') {
+        const x = worldX(h.x);
+        if (x + h.w < -20 || x > W + 20) continue;
+        ctx.save();
+        ctx.fillStyle = 'rgba(255,91,72,0.22)';
+        ctx.fillRect(x, fy - 14, h.w, 14);
+        ctx.strokeStyle = 'rgba(255,154,61,0.9)';
+        ctx.lineWidth = 2;
+        const offset = (G.time * h.force * 0.7) % 48;
+        for (let px = x - 48 + offset; px < x + h.w + 48; px += 48) {
+          const tip = px + (h.dir > 0 ? 12 : -12);
+          ctx.beginPath();
+          ctx.moveTo(px - h.dir * 8, fy - 11);
+          ctx.lineTo(tip, fy - 7);
+          ctx.lineTo(px - h.dir * 8, fy - 3);
+          ctx.stroke();
+        }
+        ctx.restore();
+      } else if (h.type === 'laser') {
+        const x = worldX(h.x);
+        if (x + h.w < -20 || x > W + 20) continue;
+        const on = laserActive(h);
+        ctx.save();
+        // emitter boxes
+        ctx.fillStyle = 'rgba(40,8,18,0.9)';
+        ctx.fillRect(x - 6, h.y - 8, 12, 16);
+        ctx.fillRect(x + h.w - 6, h.y + h.h - 8, 12, 16);
+        if (on) {
+          const pulse = 0.55 + Math.sin(G.time * 18) * 0.25;
+          ctx.globalAlpha = pulse;
+          ctx.shadowColor = '#ff2d55';
+          ctx.shadowBlur = 18;
+          const grad = ctx.createLinearGradient(x, h.y, x + h.w, h.y + h.h);
+          grad.addColorStop(0, 'rgba(255,80,120,0.15)');
+          grad.addColorStop(0.5, 'rgba(255,45,85,0.85)');
+          grad.addColorStop(1, 'rgba(255,80,120,0.15)');
+          ctx.fillStyle = grad;
+          ctx.fillRect(x, h.y, h.w, h.h);
+          ctx.globalAlpha = 1;
+          ctx.fillStyle = 'rgba(255,220,230,0.9)';
+          ctx.fillRect(x + h.w * 0.42, h.y, Math.max(2, h.w * 0.16), h.h);
+        } else {
+          ctx.globalAlpha = 0.35;
+          ctx.strokeStyle = 'rgba(255,80,120,0.45)';
+          ctx.setLineDash([6, 8]);
+          ctx.lineWidth = 1.5;
+          ctx.beginPath();
+          ctx.moveTo(x + h.w / 2, h.y);
+          ctx.lineTo(x + h.w / 2, h.y + h.h);
+          ctx.stroke();
+          ctx.setLineDash([]);
+        }
+        ctx.restore();
       }
-      ctx.restore();
     }
   }
 
