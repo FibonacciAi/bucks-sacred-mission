@@ -26,14 +26,18 @@ Grounded in the [@activistJ741 / eBuck](https://x.com) game idea post. Cult clas
 5. **Acquisitions Floor** — Operation Hostile Takeover
 6. **Trading Floor** — Operation Paper Hands
 7. **Executive Skybridge** — Operation Kill Switch
-8. **Penthouse Boardroom** — Sacred Mission (CEO boss)
+8. **Rooftop Helipad** — Operation Airspace
+9. **Patch Core** — Operation Zero Day
+10. **Penthouse Boardroom** — Sacred Mission (CEO boss)
 
 One continuous corporate-espionage arc: shut down the physical-media shredders,
 breach the tower, crack the contract vault, break hostile acquisitions, ride
-the shareholder pit, cross the glass skybridge, then take the CEO.
+the shareholder pit, cross the glass skybridge, clear the helipad, overload the
+kill-switch core, then take the CEO.
 
-Hazard progression: conveyors (plant / trading floor) → vault lasers → elite
-density (acquisitions) → skybridge laser gauntlet → boss.
+Hazard progression: conveyors → vault lasers → elite density → skybridge lasers
+→ helipad mix → core laser grid → multiphase boss (slam / barrage / charge,
+two enrages, security adds).
 
 ## Controls
 

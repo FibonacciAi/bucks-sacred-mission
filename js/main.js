@@ -22,7 +22,7 @@ const overlay = $('#overlay');
 const canvas = $('#game');
 
 const SAVE = 'bucks_sacred_v1';
-const CAMPAIGN_VERSION = 4;
+const CAMPAIGN_VERSION = 5;
 function loadSave() {
   try {
     const saved = JSON.parse(localStorage.getItem(SAVE) || '{}');
@@ -33,15 +33,16 @@ function loadSave() {
         // Pre-expansion saves: kick mid-run players into the first added chapter.
         saved.level = L > 0 ? 1 : 0;
       } else if (prev === 3) {
-        // v3 6-level → v4 8-level: Legal Vault @3, Trading Floor @5 inserted.
-        // old: SF Plant HQ Acq Sky Boss  →  new: SF Plant HQ Legal Acq Trading Sky Boss
-        const map = { 0: 0, 1: 1, 2: 2, 3: 4, 4: 6, 5: 7 };
-        saved.level = map[L] != null ? map[L] : Math.min(L, 7);
+        // v3 6-level → 10-level map (via v4 inserts + helipad/core before boss)
+        const map = { 0: 0, 1: 1, 2: 2, 3: 4, 4: 6, 5: 9 };
+        saved.level = map[L] != null ? map[L] : Math.min(L, 9);
+      } else if (prev === 4) {
+        // v4 8-level: boss was index 7 → insert helipad@7, core@8, boss@9
+        if (L >= 7) saved.level = 7;
       } else if (prev < 3) {
-        // v2 5-level campaign roughly maps early progress; clamp far runs into Legal.
         if (L >= 5) saved.level = 3;
       }
-      if (Number(saved.level) >= 8) saved.level = 3;
+      if (Number(saved.level) >= 10) saved.level = 7;
       saved.campaignVersion = CAMPAIGN_VERSION;
     }
     return saved;
