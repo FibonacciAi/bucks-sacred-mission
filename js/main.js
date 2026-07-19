@@ -133,11 +133,13 @@ function updateBriefing() {
   const tips = $('#brief-tips');
   tips.innerHTML = '';
   const touchMode = window.matchMedia('(hover: none) and (pointer: coarse), (max-width: 900px)').matches;
+  // Keep mobile briefing short so DEPLOY stays above the fold
   const levelTips = touchMode
     ? [
-        'Left thumb: drag to move · Right thumb: hold to fire',
-        'Swipe right side ↑ jump · ↔ dash · ↓ pause — multitouch stays live',
-        ...L.tips.map((tip) => tip.replace('J / Click', 'the FIRE button')),
+        'L thumb: move · R thumb: fire · swipe ↑ jump · ↔ dash · ↓ pause',
+        ...L.tips
+          .map((tip) => tip.replace('J / Click', 'FIRE'))
+          .slice(0, 3),
       ]
     : L.tips;
   for (const t of levelTips) {
@@ -336,15 +338,33 @@ function resizeCanvas() {
 
 // ─── Mobile: kill double-tap / pinch zoom ───
 // viewport + touch-action cover most browsers; these catch iOS Safari edge cases
-document.addEventListener('gesturestart', (e) => e.preventDefault());
-document.addEventListener('gesturechange', (e) => e.preventDefault());
-document.addEventListener('gestureend', (e) => e.preventDefault());
+document.addEventListener('gesturestart', (e) => e.preventDefault(), { passive: false });
+document.addEventListener('gesturechange', (e) => e.preventDefault(), { passive: false });
+document.addEventListener('gestureend', (e) => e.preventDefault(), { passive: false });
+// Block multi-finger pinch at the touch level (iOS Safari)
+document.addEventListener('touchmove', (e) => {
+  if (e.touches.length > 1) e.preventDefault();
+}, { passive: false });
 let lastTouchEnd = 0;
 document.addEventListener('touchend', (e) => {
   const now = Date.now();
-  if (now - lastTouchEnd <= 300) e.preventDefault();
+  // Second tap within 350ms → block Safari double-tap zoom (still allows single taps)
+  if (now - lastTouchEnd <= 350) e.preventDefault();
   lastTouchEnd = now;
 }, { passive: false });
+// If Safari still scales the visual viewport, nudge layout back
+const resetViewportZoom = () => {
+  const vv = window.visualViewport;
+  if (!vv || Math.abs(vv.scale - 1) < 0.01) return;
+  const meta = document.querySelector('meta[name="viewport"]');
+  if (!meta) return;
+  const base = 'width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover';
+  meta.setAttribute('content', base);
+  // Force re-parse on some iOS builds
+  meta.setAttribute('content', `${base}, maximum-scale=1.0`);
+};
+window.visualViewport?.addEventListener('resize', resetViewportZoom);
+window.visualViewport?.addEventListener('scroll', resetViewportZoom);
 
 // ─── Input ───
 const keyboardKeys = new Set();
