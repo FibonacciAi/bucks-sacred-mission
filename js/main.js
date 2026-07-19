@@ -88,12 +88,20 @@ function show(name) {
 function syncMuteLabels() {
   const audio = getAudioStatus();
   const soundActive = audio.playing || audio.unlocked;
-  const label = isMuted() ? 'sound off' : soundActive ? 'sound on' : 'tap sound';
+  const muted = isMuted();
+  const label = muted ? 'sound off' : soundActive ? 'sound on' : 'tap sound';
   document.querySelectorAll('[data-mute]').forEach((el) => {
-    el.textContent = el.classList.contains('hud-sound')
-      ? (isMuted() ? 'off' : soundActive ? 'on' : 'tap')
-      : label;
-    el.setAttribute('aria-pressed', isMuted() ? 'true' : 'false');
+    if (el.classList.contains('btn-icon')) {
+      el.textContent = muted ? '×' : '♪';
+      el.title = label;
+      el.classList.toggle('is-muted', muted);
+    } else if (el.classList.contains('hud-sound')) {
+      el.textContent = muted ? 'off' : soundActive ? 'on' : 'tap';
+    } else {
+      el.textContent = label;
+    }
+    el.setAttribute('aria-pressed', muted ? 'true' : 'false');
+    el.setAttribute('aria-label', label);
   });
 }
 
@@ -128,18 +136,24 @@ function armorName() {
 
 function updateBriefing() {
   const L = LEVELS[state.level];
-  $('#brief-title').textContent = `LEVEL ${state.level + 1} — ${L.name}`;
-  $('#brief-body').textContent = L.briefing;
+  const n = state.level + 1;
+  const lvlEl = $('#brief-lvl');
+  if (lvlEl) lvlEl.textContent = String(n).padStart(2, '0');
+  $('#brief-title').textContent = L.name;
+  // Mobile gets a tighter brief so the deploy CTA never falls below the fold
+  const touchMode = window.matchMedia('(hover: none) and (pointer: coarse), (max-width: 900px)').matches;
+  const short = L.briefing.length > 140
+    ? `${L.briefing.slice(0, L.briefing.lastIndexOf(' ', 136))}…`
+    : L.briefing;
+  $('#brief-body').textContent = touchMode ? short : L.briefing;
   const tips = $('#brief-tips');
   tips.innerHTML = '';
-  const touchMode = window.matchMedia('(hover: none) and (pointer: coarse), (max-width: 900px)').matches;
-  // Keep mobile briefing short so DEPLOY stays above the fold
   const levelTips = touchMode
     ? [
-        'L thumb: move · R thumb: fire · swipe ↑ jump · ↔ dash · ↓ pause',
+        'Move L · Fire R · swipe ↑ jump · ↔ dash · ↓ pause',
         ...L.tips
-          .map((tip) => tip.replace('J / Click', 'FIRE'))
-          .slice(0, 3),
+          .map((tip) => tip.replace('J / Click', 'FIRE').replace(' — J / Click', ''))
+          .slice(0, 2),
       ]
     : L.tips;
   for (const t of levelTips) {
