@@ -38,9 +38,15 @@
 
     <!-- BRIEFING -->
     <section id="briefing" class="view hidden">
-      <div class="panel">
-        <p class="eyebrow">CLASSIFIED // $GME OPS</p>
-        <h2 id="brief-title">LEVEL 1 — SERVER FARM</h2>
+      <div class="panel panel-brief">
+        <header class="brief-head">
+          <p class="eyebrow">CLASSIFIED // $GME OPS</p>
+          <button type="button" class="btn-icon" data-mute aria-label="Toggle sound">♪</button>
+        </header>
+        <div class="brief-level-row">
+          <span class="brief-lvl" id="brief-lvl">01</span>
+          <h2 id="brief-title">SERVER FARM</h2>
+        </div>
         <p id="brief-body" class="brief-body"></p>
         <ul id="brief-tips" class="brief-tips"></ul>
         <div class="brief-stats">
@@ -49,10 +55,7 @@
           <div><span>ARMOR</span><b id="brief-armor">None</b></div>
           <div><span>SLABS</span><b id="brief-slabs">0</b></div>
         </div>
-        <div class="title-actions">
-          <button type="button" id="btn-deploy" class="btn-hero">DEPLOY BUCK</button>
-          <button type="button" class="btn-ghost" data-mute>sound</button>
-        </div>
+        <button type="button" id="btn-deploy" class="btn-hero btn-deploy">DEPLOY BUCK</button>
       </div>
     </section>
 
@@ -86,19 +89,20 @@
       </div>
       <div id="touch-controls" aria-label="Touch game controls">
         <div id="move-pad" class="touch-surface move-surface" role="group" aria-label="Drag left or right anywhere in this area to move">
-          <div class="surface-title"><b>MOVE</b><span>drag anywhere</span></div>
-          <div class="move-guide" aria-hidden="true"><span>←</span><em>SLIDE</em><span>→</span></div>
+          <div class="surface-title"><b>MOVE</b></div>
+          <div class="move-ring" aria-hidden="true"></div>
+          <div class="move-guide" aria-hidden="true"><span>◀</span><em>DRAG</em><span>▶</span></div>
           <div id="move-origin" class="move-origin" aria-hidden="true">
             <div id="move-stick" class="move-stick"></div>
           </div>
         </div>
         <div id="action-pad" class="touch-surface action-surface" role="group" aria-label="Hold anywhere to fire. Swipe up to jump, sideways to dash, or down to pause">
-          <div class="surface-title"><b>ACTION</b><span>hold + swipe</span></div>
+          <div class="surface-title"><b>FIRE</b></div>
+          <div class="fire-core" aria-hidden="true"><span></span></div>
           <div class="gesture-map" aria-hidden="true">
-            <span class="gesture-jump">↑ <em>JUMP</em></span>
-            <strong>● HOLD FIRE</strong>
-            <span class="gesture-dash">↔ <em>DASH</em></span>
-            <span class="gesture-pause">↓ <em>PAUSE</em></span>
+            <span class="gesture-jump">↑ JUMP</span>
+            <span class="gesture-dash">↔ DASH</span>
+            <span class="gesture-pause">↓ PAUSE</span>
           </div>
           <div id="gesture-feedback" class="gesture-feedback" aria-live="polite"></div>
         </div>
@@ -109,17 +113,19 @@
 
     <!-- SHOP -->
     <section id="shop" class="view hidden">
-      <div class="panel wide">
-        <p class="eyebrow">ARMORY // UNDERWEAR &amp; SOCKS DIVISION</p>
-        <h2>UPGRADE ARMOR</h2>
-        <p class="lede sm">Spend slabs on legendary undergarments. Fashion is damage reduction.</p>
+      <div class="panel wide panel-shop">
+        <header class="brief-head">
+          <p class="eyebrow">ARMORY // UNDERWEAR &amp; SOCKS</p>
+          <button type="button" class="btn-icon" data-mute aria-label="Toggle sound">♪</button>
+        </header>
+        <div class="shop-title-row">
+          <h2>UPGRADE ARMOR</h2>
+          <div class="stat shop-slabs-pill">SLABS <b id="shop-slabs">0</b></div>
+        </div>
+        <p class="lede sm shop-tagline">Fashion is damage reduction.</p>
         <div class="shop-grid" id="shop-grid"></div>
         <div class="shop-foot">
-          <div class="stat">YOUR SLABS <b id="shop-slabs">0</b></div>
-          <div class="title-actions">
-            <button type="button" class="btn-ghost" data-mute>sound</button>
-            <button type="button" id="btn-shop-next" class="btn-hero">CONTINUE MISSION →</button>
-          </div>
+          <button type="button" id="btn-shop-next" class="btn-hero btn-deploy">CONTINUE MISSION →</button>
         </div>
       </div>
     </section>
