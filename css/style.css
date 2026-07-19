@@ -598,8 +598,11 @@ h1 {
   #briefing,
   #shop {
     align-items: stretch;
-    justify-content: center;
+    justify-content: stretch;
     overflow: hidden;
+    /* lock to visible viewport (Safari URL bar friendly) */
+    height: 100%;
+    max-height: 100dvh;
   }
 
   .title-ui {
@@ -612,22 +615,24 @@ h1 {
     align-items: center;
     justify-content: center;
     margin: auto;
-    padding: max(0.65rem, env(safe-area-inset-top, 0px)) 0.9rem max(0.65rem, env(safe-area-inset-bottom, 0px));
+    padding: max(0.5rem, env(safe-area-inset-top, 0px)) 0.85rem max(0.5rem, env(safe-area-inset-bottom, 0px));
+    overflow: hidden;
   }
   .title-bg { background-position: 52% center; }
-  .title-ui .eyebrow { font-size: 0.6rem; margin-bottom: 0.55rem; }
-  .title-ui h1 { font-size: clamp(1.7rem, 8.5vw, 2.9rem); margin-bottom: 0.55rem; }
-  .title-ui .lede { font-size: 0.9rem; margin-bottom: 0.55rem; line-height: 1.35; }
+  .title-ui .eyebrow { font-size: 0.58rem; margin-bottom: 0.4rem; }
+  .title-ui h1 { font-size: clamp(1.55rem, 8vw, 2.7rem); margin-bottom: 0.4rem; line-height: 1.05; }
+  .title-ui .lede { font-size: 0.86rem; margin-bottom: 0.45rem; line-height: 1.3; }
   .title-feats {
-    margin-bottom: 0.7rem;
-    gap: 0.35rem;
+    margin-bottom: 0.55rem;
+    gap: 0.3rem;
     justify-content: center;
+    max-width: 100%;
   }
-  .title-feats span { font-size: 0.72rem; padding: 0.28rem 0.45rem; }
-  .title-actions { width: 100%; flex-shrink: 0; gap: 0.5rem; }
-  .title-actions .btn-hero { min-height: 50px; width: 100%; }
-  .title-actions .btn-ghost { min-height: 42px; width: 100%; }
-  .title-ui .fineprint { margin-top: 0.55rem; font-size: 0.78rem; }
+  .title-feats span { font-size: 0.68rem; padding: 0.22rem 0.4rem; }
+  .title-actions { width: 100%; flex-shrink: 0; gap: 0.4rem; }
+  .title-actions .btn-hero { min-height: 48px; width: 100%; }
+  .title-actions .btn-ghost { min-height: 40px; width: 100%; }
+  .title-ui .fineprint { margin-top: 0.4rem; font-size: 0.74rem; }
   /* sticky :hover scale on iOS can feel like a zoom */
   .btn-hero:hover { transform: none; filter: none; }
   .btn-hero:active { transform: scale(0.98); }
@@ -635,89 +640,100 @@ h1 {
   .touch-hint {
     display: block;
     max-width: 28rem;
-    font-size: 0.82rem;
-    line-height: 1.3;
+    font-size: 0.78rem;
+    line-height: 1.25;
   }
 
   .panel,
   .panel.wide {
-    width: calc(100% - 0.85rem);
-    max-width: 680px;
-    max-height: calc(100% - 0.35rem);
-    margin: auto;
-    padding: 0.75rem 0.85rem 0.8rem;
-    border-radius: 16px;
+    width: 100%;
+    max-width: none;
+    height: 100%;
+    max-height: 100%;
+    margin: 0;
+    padding: 0.65rem 0.75rem calc(0.65rem + env(safe-area-inset-bottom, 0px));
+    border-radius: 0;
+    border-left: 0;
+    border-right: 0;
     display: flex;
     flex-direction: column;
     min-height: 0;
     overflow: hidden;
     background:
-      radial-gradient(ellipse at 10% 0%, rgba(77,225,255,0.08), transparent 45%),
-      radial-gradient(ellipse at 90% 100%, rgba(155,107,255,0.08), transparent 40%),
-      var(--panel);
+      radial-gradient(ellipse at 10% 0%, rgba(77,225,255,0.1), transparent 45%),
+      radial-gradient(ellipse at 90% 100%, rgba(155,107,255,0.1), transparent 40%),
+      rgba(8, 10, 18, 0.97);
+    box-shadow: none;
   }
-  .brief-head { margin-bottom: 0.4rem; flex-shrink: 0; }
-  .brief-head .eyebrow { font-size: 0.58rem; letter-spacing: 0.16em; }
-  .btn-icon { width: 36px; height: 36px; font-size: 0.9rem; }
-  .brief-level-row { margin-bottom: 0.4rem; flex-shrink: 0; gap: 0.55rem; }
-  .brief-lvl { font-size: 0.72rem; padding: 0.38rem 0.45rem; min-width: 2.3rem; }
+  .brief-head { margin-bottom: 0.3rem; flex: 0 0 auto; }
+  .brief-head .eyebrow { font-size: 0.55rem; letter-spacing: 0.14em; }
+  .btn-icon { width: 34px; height: 34px; font-size: 0.85rem; }
+  .brief-level-row { margin-bottom: 0.3rem; flex: 0 0 auto; gap: 0.5rem; }
+  .brief-lvl { font-size: 0.68rem; padding: 0.32rem 0.4rem; min-width: 2.15rem; }
   .brief-level-row h2 {
-    font-size: clamp(1rem, 4.6vw, 1.28rem);
+    font-size: clamp(0.98rem, 4.4vw, 1.2rem);
     margin: 0;
-    line-height: 1.15;
+    line-height: 1.1;
   }
   .brief-body {
-    font-size: 0.86rem;
-    line-height: 1.32;
-    margin-bottom: 0.4rem;
-    flex-shrink: 0;
-    overflow: hidden;
-    display: -webkit-box;
-    -webkit-box-orient: vertical;
-    -webkit-line-clamp: 3;
-  }
-  .brief-tips {
-    margin-bottom: 0.45rem;
+    font-size: 0.82rem;
+    line-height: 1.28;
+    margin-bottom: 0.3rem;
     flex: 0 1 auto;
     min-height: 0;
     overflow: hidden;
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+    line-clamp: 2;
+  }
+  .brief-tips {
+    margin-bottom: 0.35rem;
+    flex: 1 1 0;
+    min-height: 0;
+    max-height: 4.8rem;
+    overflow: hidden;
   }
   .brief-tips li {
-    font-size: 0.8rem;
-    padding: 0.22rem 0;
-    line-height: 1.28;
+    font-size: 0.76rem;
+    padding: 0.18rem 0;
+    line-height: 1.25;
     border-top-color: rgba(120,180,255,0.12);
   }
+  .brief-tips li:nth-child(n+3) { display: none; }
   .brief-stats {
     grid-template-columns: repeat(4, minmax(0, 1fr));
-    gap: 0.3rem;
-    margin-bottom: 0.55rem;
-    flex-shrink: 0;
+    gap: 0.28rem;
+    margin-bottom: 0.45rem;
+    flex: 0 0 auto;
   }
   .brief-stats div {
-    padding: 0.3rem 0.2rem;
+    padding: 0.28rem 0.15rem;
     border-radius: 8px;
   }
-  .brief-stats span { font-size: 0.55rem; letter-spacing: 0.06em; }
-  .brief-stats b { font-size: 0.78rem; margin-top: 0.08rem; }
+  .brief-stats span { font-size: 0.52rem; letter-spacing: 0.05em; }
+  .brief-stats b { font-size: 0.72rem; margin-top: 0.05rem; }
   .btn-deploy {
-    flex-shrink: 0;
-    min-height: 48px;
+    flex: 0 0 auto !important;
+    min-height: 50px;
     margin-top: auto;
-    font-size: 0.85rem;
-    padding: 0.75rem 1rem;
+    font-size: 0.84rem;
+    padding: 0.8rem 1rem;
+    /* keep CTA painted above Safari chrome */
+    position: relative;
+    z-index: 2;
   }
-  .shop-title-row { flex-shrink: 0; margin-bottom: 0.2rem; }
-  .shop-title-row h2 { font-size: 1.05rem; }
+  .shop-title-row { flex: 0 0 auto; margin-bottom: 0.15rem; }
+  .shop-title-row h2 { font-size: 1rem; }
   .shop-tagline {
-    font-size: 0.82rem;
-    margin-bottom: 0.45rem;
-    flex-shrink: 0;
+    font-size: 0.78rem;
+    margin-bottom: 0.35rem;
+    flex: 0 0 auto;
   }
   .shop-grid {
     grid-template-columns: 1fr;
-    gap: 0.5rem;
-    margin: 0 0 0.55rem;
+    gap: 0.45rem;
+    margin: 0 0 0.45rem;
     flex: 1 1 auto;
     min-height: 0;
     overflow-y: auto;
@@ -725,17 +741,17 @@ h1 {
     overscroll-behavior: contain;
   }
   .shop-item {
-    padding: 0.65rem 0.75rem;
-    gap: 0.25rem;
+    padding: 0.55rem 0.65rem;
+    gap: 0.2rem;
     border-radius: 10px;
   }
-  .shop-item h3 { font-size: 0.82rem; }
-  .shop-item p { font-size: 0.8rem; line-height: 1.25; }
-  .shop-item .cost { font-size: 0.72rem; }
-  .shop-item button { min-height: 40px; padding: 0.4rem; font-size: 0.68rem; }
+  .shop-item h3 { font-size: 0.78rem; }
+  .shop-item p { font-size: 0.76rem; line-height: 1.22; }
+  .shop-item .cost { font-size: 0.68rem; }
+  .shop-item button { min-height: 38px; padding: 0.35rem; font-size: 0.66rem; }
   .shop-foot {
     width: 100%;
-    flex-shrink: 0;
+    flex: 0 0 auto;
     margin: 0;
   }
   .shop-foot .btn-deploy { margin-top: 0; }
@@ -1129,27 +1145,31 @@ h1 {
 }
 
 /* Short phones / Safari chrome: keep DEPLOY fully on-screen */
-@media (max-height: 780px) and (orientation: portrait) {
-  #briefing .panel,
-  #shop .panel {
-    padding: 0.6rem 0.75rem 0.7rem;
-  }
+@media (max-height: 820px) and (orientation: portrait) {
   #briefing .brief-body {
-    font-size: 0.8rem;
+    font-size: 0.78rem;
     -webkit-line-clamp: 2;
-    margin-bottom: 0.3rem;
+    line-clamp: 2;
+    margin-bottom: 0.25rem;
   }
-  #briefing .brief-tips li { font-size: 0.74rem; padding: 0.16rem 0; }
+  #briefing .brief-tips { max-height: 3.6rem; }
+  #briefing .brief-tips li { font-size: 0.72rem; padding: 0.12rem 0; }
   #briefing .brief-tips li:nth-child(n+3) { display: none; }
-  #briefing .brief-stats { margin-bottom: 0.45rem; }
-  #briefing .btn-deploy { min-height: 46px; font-size: 0.82rem; }
+  #briefing .brief-stats { margin-bottom: 0.35rem; gap: 0.22rem; }
+  #briefing .btn-deploy { min-height: 48px; font-size: 0.8rem; }
+  #title .title-feats { display: none; }
+  #title .lede br { display: none; }
+  #title .touch-hint { display: none; }
 }
 
 @media (max-height: 700px) and (orientation: portrait) {
-  #briefing .brief-body { -webkit-line-clamp: 2; }
+  #briefing .brief-body {
+    -webkit-line-clamp: 1;
+    line-clamp: 1;
+  }
   #briefing .brief-tips li:nth-child(n+2) { display: none; }
-  #briefing .brief-stats span { font-size: 0.5rem; }
-  #briefing .brief-stats b { font-size: 0.7rem; }
-  #title .title-feats { display: none; }
-  #title .lede br { display: none; }
+  #briefing .brief-tips { max-height: 1.6rem; }
+  #briefing .brief-stats span { font-size: 0.48rem; }
+  #briefing .brief-stats b { font-size: 0.68rem; }
+  #briefing .brief-stats div { padding: 0.22rem 0.1rem; }
 }
