@@ -26,6 +26,14 @@ html, body {
   user-select: none;
   -webkit-user-select: none;
   -webkit-touch-callout: none;
+  /* kill double-tap zoom + 300ms delay; pan still allowed on non-canvas UI */
+  touch-action: manipulation;
+}
+
+/* canvas owns all gestures — no browser zoom/pan/scroll */
+#game {
+  touch-action: none;
+  -ms-touch-action: none;
 }
 
 #app {
