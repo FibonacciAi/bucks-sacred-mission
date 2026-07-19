@@ -334,6 +334,18 @@ function resizeCanvas() {
   state.game?.draw();
 }
 
+// ─── Mobile: kill double-tap / pinch zoom ───
+// viewport + touch-action cover most browsers; these catch iOS Safari edge cases
+document.addEventListener('gesturestart', (e) => e.preventDefault());
+document.addEventListener('gesturechange', (e) => e.preventDefault());
+document.addEventListener('gestureend', (e) => e.preventDefault());
+let lastTouchEnd = 0;
+document.addEventListener('touchend', (e) => {
+  const now = Date.now();
+  if (now - lastTouchEnd <= 300) e.preventDefault();
+  lastTouchEnd = now;
+}, { passive: false });
+
 // ─── Input ───
 const keyboardKeys = new Set();
 const pointerKeys = new Map();
