@@ -1,14 +1,15 @@
 /**
  * Buck's Sacred Mission — screens, shop, boot.
  */
-import { loadAll } from './assets.js';
+// Cache-bust query keeps iOS Safari from serving stale modules after deploys
+import { loadAll } from './assets.js?v=20260719b';
 import {
   unlock as unlockAudio, muteToggle, isMuted, sfx,
   startMusic, stopMusic, loadOpener, playOpener, stopOpener, isOpenerPlaying,
   ensurePlayback, getAudioStatus,
-} from './audio.js';
-import { LEVELS, SHOP_ITEMS, WIN_TEXT, ARMOR } from './data.js';
-import { createGame } from './game.js';
+} from './audio.js?v=20260719b';
+import { LEVELS, SHOP_ITEMS, WIN_TEXT, ARMOR } from './data.js?v=20260719b';
+import { createGame } from './game.js?v=20260719b';
 
 const $ = (s) => document.querySelector(s);
 
@@ -140,20 +141,20 @@ function updateBriefing() {
   const lvlEl = $('#brief-lvl');
   if (lvlEl) lvlEl.textContent = String(n).padStart(2, '0');
   $('#brief-title').textContent = L.name;
-  // Mobile gets a tighter brief so the deploy CTA never falls below the fold
+  // Mobile gets a tight brief so DEPLOY never falls below the fold
   const touchMode = window.matchMedia('(hover: none) and (pointer: coarse), (max-width: 900px)').matches;
-  const short = L.briefing.length > 140
-    ? `${L.briefing.slice(0, L.briefing.lastIndexOf(' ', 136))}…`
+  const short = L.briefing.length > 110
+    ? `${L.briefing.slice(0, L.briefing.lastIndexOf(' ', 106) || 106)}…`
     : L.briefing;
   $('#brief-body').textContent = touchMode ? short : L.briefing;
   const tips = $('#brief-tips');
   tips.innerHTML = '';
   const levelTips = touchMode
     ? [
-        'Move L · Fire R · swipe ↑ jump · ↔ dash · ↓ pause',
-        ...L.tips
-          .map((tip) => tip.replace('J / Click', 'FIRE').replace(' — J / Click', ''))
-          .slice(0, 2),
+        'L move · R fire · ↑ jump · ↔ dash · ↓ pause',
+        ...(L.tips[0]
+          ? [L.tips[0].replace('J / Click', 'FIRE').replace(' — J / Click', '')]
+          : []),
       ]
     : L.tips;
   for (const t of levelTips) {
