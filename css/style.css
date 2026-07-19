@@ -26,24 +26,30 @@ html, body {
   user-select: none;
   -webkit-user-select: none;
   -webkit-touch-callout: none;
-  /* kill double-tap zoom + 300ms delay; pan still allowed on non-canvas UI */
+  /* kill double-tap zoom + 300ms delay site-wide */
   touch-action: manipulation;
 }
 
-/* Explicit on controls — iOS still zooms buttons if they inherit only from body */
+/* Explicit on controls — iOS still zooms buttons if they only inherit from body */
 button,
 a,
 input,
 select,
 textarea,
 .btn-hero,
-.btn-ghost {
+.btn-ghost,
+.btn-icon,
+.panel,
+.view,
+#app {
   touch-action: manipulation;
   -webkit-tap-highlight-color: transparent;
 }
 
-/* canvas owns all gestures — no browser zoom/pan/scroll */
-#game {
+/* canvas / dual-pad own all gestures */
+#game,
+.touch-surface,
+#touch-controls {
   touch-action: none;
   -ms-touch-action: none;
 }
@@ -55,7 +61,6 @@ textarea,
   height: 100dvh;
   background: #000;
   overflow: hidden;
-  touch-action: manipulation;
 }
 
 .view {
@@ -298,6 +303,10 @@ h1 {
 .btn-deploy {
   width: 100%;
   margin-top: 0.15rem;
+}
+.brief-scroll {
+  /* desktop: no special scroll needed */
+  min-height: 0;
 }
 .shop-title-row {
   display: flex;
@@ -665,63 +674,73 @@ h1 {
       rgba(8, 10, 18, 0.97);
     box-shadow: none;
   }
-  .brief-head { margin-bottom: 0.3rem; flex: 0 0 auto; }
+  .brief-head { margin-bottom: 0.35rem; flex: 0 0 auto; }
   .brief-head .eyebrow { font-size: 0.55rem; letter-spacing: 0.14em; }
   .btn-icon { width: 34px; height: 34px; font-size: 0.85rem; }
-  .brief-level-row { margin-bottom: 0.3rem; flex: 0 0 auto; gap: 0.5rem; }
+  .brief-level-row { margin-bottom: 0.35rem; flex: 0 0 auto; gap: 0.5rem; }
   .brief-lvl { font-size: 0.68rem; padding: 0.32rem 0.4rem; min-width: 2.15rem; }
   .brief-level-row h2 {
     font-size: clamp(0.98rem, 4.4vw, 1.2rem);
     margin: 0;
     line-height: 1.1;
   }
-  .brief-body {
-    font-size: 0.82rem;
-    line-height: 1.28;
-    margin-bottom: 0.3rem;
-    flex: 0 1 auto;
+  /* Scrollable middle — full brief + all tips, CTA stays pinned */
+  .brief-scroll {
+    flex: 1 1 auto;
     min-height: 0;
-    overflow: hidden;
-    display: -webkit-box;
-    -webkit-box-orient: vertical;
-    -webkit-line-clamp: 2;
-    line-clamp: 2;
+    overflow-x: hidden;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior: contain;
+    touch-action: pan-y;
+    margin-bottom: 0.45rem;
+    padding-right: 0.15rem;
+    /* fade hint that more content may exist */
+    mask-image: linear-gradient(180deg, #000 0%, #000 88%, transparent 100%);
+    -webkit-mask-image: linear-gradient(180deg, #000 0%, #000 88%, transparent 100%);
+  }
+  .brief-body {
+    font-size: 0.9rem;
+    line-height: 1.4;
+    margin-bottom: 0.55rem;
+    overflow: visible;
+    display: block;
+    -webkit-line-clamp: unset;
+    line-clamp: unset;
   }
   .brief-tips {
-    margin-bottom: 0.35rem;
-    flex: 1 1 0;
-    min-height: 0;
-    max-height: 4.8rem;
-    overflow: hidden;
+    margin-bottom: 0.25rem;
+    overflow: visible;
+    max-height: none;
   }
   .brief-tips li {
-    font-size: 0.76rem;
-    padding: 0.18rem 0;
-    line-height: 1.25;
+    font-size: 0.86rem;
+    padding: 0.32rem 0;
+    line-height: 1.3;
     border-top-color: rgba(120,180,255,0.12);
   }
-  .brief-tips li:nth-child(n+3) { display: none; }
+  .brief-tips li:nth-child(n+3) { display: list-item; }
   .brief-stats {
     grid-template-columns: repeat(4, minmax(0, 1fr));
     gap: 0.28rem;
-    margin-bottom: 0.45rem;
+    margin-bottom: 0.5rem;
     flex: 0 0 auto;
   }
   .brief-stats div {
-    padding: 0.28rem 0.15rem;
+    padding: 0.32rem 0.15rem;
     border-radius: 8px;
   }
   .brief-stats span { font-size: 0.52rem; letter-spacing: 0.05em; }
-  .brief-stats b { font-size: 0.72rem; margin-top: 0.05rem; }
+  .brief-stats b { font-size: 0.74rem; margin-top: 0.05rem; }
   .btn-deploy {
     flex: 0 0 auto !important;
     min-height: 50px;
-    margin-top: auto;
+    margin-top: 0;
     font-size: 0.84rem;
     padding: 0.8rem 1rem;
-    /* keep CTA painted above Safari chrome */
     position: relative;
     z-index: 2;
+    touch-action: manipulation;
   }
   .shop-title-row { flex: 0 0 auto; margin-bottom: 0.15rem; }
   .shop-title-row h2 { font-size: 1rem; }
@@ -739,6 +758,7 @@ h1 {
     overflow-y: auto;
     -webkit-overflow-scrolling: touch;
     overscroll-behavior: contain;
+    touch-action: pan-y;
   }
   .shop-item {
     padding: 0.55rem 0.65rem;
@@ -1144,32 +1164,20 @@ h1 {
   .fire-core span { inset: 11px; }
 }
 
-/* Short phones / Safari chrome: keep DEPLOY fully on-screen */
+/* Short phones: still show full content via scroll; only tighten chrome */
 @media (max-height: 820px) and (orientation: portrait) {
-  #briefing .brief-body {
-    font-size: 0.78rem;
-    -webkit-line-clamp: 2;
-    line-clamp: 2;
-    margin-bottom: 0.25rem;
-  }
-  #briefing .brief-tips { max-height: 3.6rem; }
-  #briefing .brief-tips li { font-size: 0.72rem; padding: 0.12rem 0; }
-  #briefing .brief-tips li:nth-child(n+3) { display: none; }
-  #briefing .brief-stats { margin-bottom: 0.35rem; gap: 0.22rem; }
+  #briefing .brief-body { font-size: 0.86rem; margin-bottom: 0.4rem; }
+  #briefing .brief-tips li { font-size: 0.82rem; padding: 0.26rem 0; }
+  #briefing .brief-stats { margin-bottom: 0.4rem; gap: 0.22rem; }
   #briefing .btn-deploy { min-height: 48px; font-size: 0.8rem; }
-  #title .title-feats { display: none; }
+  #title .title-feats { max-height: 4.5rem; overflow: hidden; }
   #title .lede br { display: none; }
-  #title .touch-hint { display: none; }
 }
 
 @media (max-height: 700px) and (orientation: portrait) {
-  #briefing .brief-body {
-    -webkit-line-clamp: 1;
-    line-clamp: 1;
-  }
-  #briefing .brief-tips li:nth-child(n+2) { display: none; }
-  #briefing .brief-tips { max-height: 1.6rem; }
   #briefing .brief-stats span { font-size: 0.48rem; }
   #briefing .brief-stats b { font-size: 0.68rem; }
   #briefing .brief-stats div { padding: 0.22rem 0.1rem; }
+  #title .title-feats { display: none; }
+  #title .touch-hint { font-size: 0.72rem; }
 }
