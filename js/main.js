@@ -2,14 +2,14 @@
  * Buck's Sacred Mission — screens, shop, boot.
  */
 // Cache-bust query keeps iOS Safari from serving stale modules after deploys
-import { loadAll } from './assets.js?v=20260719b';
+import { loadAll } from './assets.js?v=20260719c';
 import {
   unlock as unlockAudio, muteToggle, isMuted, sfx,
   startMusic, stopMusic, loadOpener, playOpener, stopOpener, isOpenerPlaying,
   ensurePlayback, getAudioStatus,
-} from './audio.js?v=20260719b';
-import { LEVELS, SHOP_ITEMS, WIN_TEXT, ARMOR } from './data.js?v=20260719b';
-import { createGame } from './game.js?v=20260719b';
+} from './audio.js?v=20260719c';
+import { LEVELS, SHOP_ITEMS, WIN_TEXT, ARMOR } from './data.js?v=20260719c';
+import { createGame } from './game.js?v=20260719c';
 
 const $ = (s) => document.querySelector(s);
 
@@ -141,20 +141,15 @@ function updateBriefing() {
   const lvlEl = $('#brief-lvl');
   if (lvlEl) lvlEl.textContent = String(n).padStart(2, '0');
   $('#brief-title').textContent = L.name;
-  // Mobile gets a tight brief so DEPLOY never falls below the fold
-  const touchMode = window.matchMedia('(hover: none) and (pointer: coarse), (max-width: 900px)').matches;
-  const short = L.briefing.length > 110
-    ? `${L.briefing.slice(0, L.briefing.lastIndexOf(' ', 106) || 106)}…`
-    : L.briefing;
-  $('#brief-body').textContent = touchMode ? short : L.briefing;
+  // Full copy always — mobile scrolls inside .brief-scroll, CTA stays pinned
+  $('#brief-body').textContent = L.briefing;
   const tips = $('#brief-tips');
   tips.innerHTML = '';
+  const touchMode = window.matchMedia('(hover: none) and (pointer: coarse), (max-width: 900px)').matches;
   const levelTips = touchMode
     ? [
-        'L move · R fire · ↑ jump · ↔ dash · ↓ pause',
-        ...(L.tips[0]
-          ? [L.tips[0].replace('J / Click', 'FIRE').replace(' — J / Click', '')]
-          : []),
+        'L thumb: move · R thumb: hold fire · swipe ↑ jump · ↔ dash · ↓ pause',
+        ...L.tips.map((tip) => tip.replace('J / Click', 'FIRE')),
       ]
     : L.tips;
   for (const t of levelTips) {
@@ -352,34 +347,59 @@ function resizeCanvas() {
 }
 
 // ─── Mobile: kill double-tap / pinch zoom ───
-// viewport + touch-action cover most browsers; these catch iOS Safari edge cases
+// iOS ignores user-scalable=no for a11y — block at gesture + double-tap layers.
+const VIEWPORT_LOCK =
+  'width=device-width, initial-scale=1, minimum-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover';
+const lockViewportMeta = () => {
+  const meta = document.querySelector('meta[name="viewport"]');
+  if (meta) meta.setAttribute('content', VIEWPORT_LOCK);
+};
+lockViewportMeta();
+
 document.addEventListener('gesturestart', (e) => e.preventDefault(), { passive: false });
 document.addEventListener('gesturechange', (e) => e.preventDefault(), { passive: false });
 document.addEventListener('gestureend', (e) => e.preventDefault(), { passive: false });
-// Block multi-finger pinch at the touch level (iOS Safari)
+
+// Block multi-finger pinch
 document.addEventListener('touchmove', (e) => {
   if (e.touches.length > 1) e.preventDefault();
-}, { passive: false });
-let lastTouchEnd = 0;
-document.addEventListener('touchend', (e) => {
+}, { passive: false, capture: true });
+
+// Double-tap zoom: intercept the SECOND touchstart (more reliable than touchend on iOS).
+// Skip pan-y regions — those use touch-action: pan-y and need free scrolling.
+let lastTapAt = 0;
+let lastTapX = 0;
+let lastTapY = 0;
+document.addEventListener('touchstart', (e) => {
+  if (e.touches.length > 1) {
+    e.preventDefault();
+    return;
+  }
+  const t = e.touches[0];
   const now = Date.now();
-  // Second tap within 350ms → block Safari double-tap zoom (still allows single taps)
-  if (now - lastTouchEnd <= 350) e.preventDefault();
-  lastTouchEnd = now;
-}, { passive: false });
-// If Safari still scales the visual viewport, nudge layout back
+  const dt = now - lastTapAt;
+  const dx = Math.abs(t.clientX - lastTapX);
+  const dy = Math.abs(t.clientY - lastTapY);
+  const inPanY = !!e.target?.closest?.('.brief-scroll, .shop-grid, #game, .touch-surface');
+  if (!inPanY && dt > 0 && dt < 320 && dx < 40 && dy < 40) {
+    e.preventDefault(); // blocks Safari double-tap zoom on buttons/chrome
+  }
+  lastTapAt = now;
+  lastTapX = t.clientX;
+  lastTapY = t.clientY;
+}, { passive: false, capture: true });
+
+// Hard-reset if visual viewport scale drifts
 const resetViewportZoom = () => {
   const vv = window.visualViewport;
-  if (!vv || Math.abs(vv.scale - 1) < 0.01) return;
-  const meta = document.querySelector('meta[name="viewport"]');
-  if (!meta) return;
-  const base = 'width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover';
-  meta.setAttribute('content', base);
-  // Force re-parse on some iOS builds
-  meta.setAttribute('content', `${base}, maximum-scale=1.0`);
+  if (!vv) return;
+  if (Math.abs(vv.scale - 1) >= 0.01) lockViewportMeta();
 };
 window.visualViewport?.addEventListener('resize', resetViewportZoom);
 window.visualViewport?.addEventListener('scroll', resetViewportZoom);
+document.addEventListener('visibilitychange', () => {
+  if (!document.hidden) lockViewportMeta();
+});
 
 // ─── Input ───
 const keyboardKeys = new Set();

@@ -2,8 +2,8 @@
  * Buck's Sacred Mission — core 2D scroller engine.
  * Controls: A/D move · W/Space jump (double) · J/Click shoot · K special
  */
-import { LEVELS, ENEMY_STATS, ARMOR } from './data.js?v=20260719b';
-import { sfx } from './audio.js?v=20260719b';
+import { LEVELS, ENEMY_STATS, ARMOR } from './data.js?v=20260719c';
+import { sfx } from './audio.js?v=20260719c';
 
 const DEFAULT_W = 1280;
 const H = 720;
