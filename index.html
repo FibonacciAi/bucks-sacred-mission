@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
   <title>BUCK'S SACRED MISSION</title>
   <meta http-equiv="Cache-Control" content="no-cache" />
-  <link rel="stylesheet" href="css/style.css?v=20260719c" />
+  <link rel="stylesheet" href="css/style.css?v=20260720a" />
   <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@600;800;900&family=Rajdhani:wght@500;600;700&display=swap" rel="stylesheet" />
 </head>
 <body>
@@ -81,6 +81,7 @@
           <div id="objective" class="objective">Reach the exit →</div>
         </div>
         <div class="hud-right">
+          <div class="stat">PACKS <b id="hud-packs">0</b></div>
           <div class="stat">SLABS <b id="hud-slabs">0</b></div>
           <div class="stat">SCORE <b id="hud-score">0</b></div>
           <div class="stat">ARMOR <b id="hud-armor">—</b></div>
@@ -123,9 +124,12 @@
         </header>
         <div class="shop-title-row">
           <h2>UPGRADE ARMOR</h2>
-          <div class="stat shop-slabs-pill">SLABS <b id="shop-slabs">0</b></div>
+          <div class="shop-pills">
+            <div class="stat shop-slabs-pill">SLABS <b id="shop-slabs">0</b></div>
+            <div class="stat shop-slabs-pill">PACKS <b id="shop-packs">0</b></div>
+          </div>
         </div>
-        <p class="lede sm shop-tagline">Fashion is damage reduction.</p>
+        <p class="lede sm shop-tagline">Fashion is damage reduction. Rip packs for mid-mission full heals.</p>
         <div class="shop-grid" id="shop-grid"></div>
         <div class="shop-foot">
           <button type="button" id="btn-shop-next" class="btn-hero btn-deploy">CONTINUE MISSION →</button>
@@ -147,6 +151,6 @@
     </div>
   </div>
 
-  <script type="module" src="js/main.js?v=20260719c"></script>
+  <script type="module" src="js/main.js?v=20260720a"></script>
 </body>
 </html>

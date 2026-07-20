@@ -2,8 +2,8 @@
  * Buck's Sacred Mission — core 2D scroller engine.
  * Controls: A/D move · W/Space jump (double) · J/Click shoot · K special
  */
-import { LEVELS, ENEMY_STATS, ARMOR } from './data.js?v=20260719c';
-import { sfx } from './audio.js?v=20260719c';
+import { LEVELS, ENEMY_STATS, ARMOR } from './data.js?v=20260720a';
+import { sfx } from './audio.js?v=20260720a';
 
 const DEFAULT_W = 1280;
 const H = 720;
@@ -112,7 +112,30 @@ export function createGame(canvas, assets, meta) {
       bullishT: 0,
       anim: 0,
       hurtFlash: 0,
+      // Armory-stocked packs auto-rip under pressure
+      packCharges: Math.max(0, Number(G.meta.stockedPacks) || 0),
     };
+  }
+
+  function tryRipStockedPack(reason = 'low') {
+    const p = G.player;
+    if (!p || (p.packCharges | 0) <= 0 || G.over) return false;
+    p.packCharges -= 1;
+    G.meta.stockedPacks = Math.max(0, (G.meta.stockedPacks || 0) - 1);
+    p.hp = MAX_HP;
+    p.invuln = Math.max(p.invuln, 1.1);
+    p.hurtFlash = 0;
+    sfx.pickup();
+    spawnParticles(p.x + p.w / 2, p.y + p.h / 2, '#3dff9a', 18, 220);
+    floatText(p.x + p.w / 2, p.y, 'PACK RIPPED', '#3dff9a');
+    toast(
+      reason === 'lethal'
+        ? '📦 POWERPACK RIPPED — CHEATED DEATH'
+        : '📦 POWERPACK RIPPED — FULL HP',
+      2,
+    );
+    G.onEvent?.('hud');
+    return true;
   }
 
   function makeEnemy(spec) {
@@ -187,6 +210,8 @@ export function createGame(canvas, assets, meta) {
     if (G.level.boss) {
       sfx.boss();
       toast('⚠ CEO DETECTED — SACRED MISSION LIVE', 2.5);
+    } else if ((G.player.packCharges | 0) > 0) {
+      toast(`📦 ${G.player.packCharges} POWERPACK${G.player.packCharges > 1 ? 'S' : ''} ARMED`, 1.8);
     }
   }
 
@@ -266,12 +291,20 @@ export function createGame(canvas, assets, meta) {
     G.shake = 10;
     sfx.hurt();
     floatText(p.x + p.w / 2, p.y, `-${final}`, '#ff4d6a');
+    G.onEvent?.('hud');
+
+    // Stocked armory packs: save from death, or top off when critically low
     if (p.hp <= 0) {
+      if (tryRipStockedPack('lethal')) return;
       p.hp = 0;
       G.over = true;
       sfx.die();
       spawnParticles(p.x + p.w / 2, p.y + p.h / 2, '#fff', 30, 320);
       G.onEvent?.('death');
+      return;
+    }
+    if (p.hp <= MAX_HP * 0.4) {
+      tryRipStockedPack('low');
     }
   }
 
@@ -305,11 +338,20 @@ export function createGame(canvas, assets, meta) {
     const pl = G.player;
     p.taken = true;
     if (p.type === 'powerpack') {
-      const heal = 35;
+      const before = pl.hp;
+      const heal = 40;
       pl.hp = Math.min(MAX_HP, pl.hp + heal);
+      const gained = Math.round(pl.hp - before);
       sfx.pickup();
-      floatText(p.x, p.y, `+${heal} HP`, '#3dff9a');
-      toast('POWERPACK RIPPED');
+      if (gained > 0) {
+        floatText(p.x, p.y, `+${gained} HP`, '#3dff9a');
+        toast('📦 POWERPACK RIPPED');
+      } else {
+        // Already full — still a useful buff so the pickup never feels dead
+        pl.invuln = Math.max(pl.invuln, 1.2);
+        floatText(p.x, p.y, 'SHIELD', '#3dff9a');
+        toast('📦 POWERPACK RIPPED — SHIELD');
+      }
     } else if (p.type === 'diamond') {
       pl.diamondT = 8;
       G.meta.dpsMul = Math.max(G.meta.dpsMul || 1, 1.15);
@@ -1365,6 +1407,7 @@ export function createGame(canvas, assets, meta) {
       maxHp: MAX_HP,
       diamond: (p?.diamondT ?? 0) > 0,
       bullish: (p?.bullishT ?? 0) > 0,
+      packs: p?.packCharges ?? (G.meta.stockedPacks || 0),
       slabs: G.meta.slabs || 0,
       score: G.meta.score || 0,
       armor: armorLabel(),

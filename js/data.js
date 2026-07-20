@@ -24,7 +24,7 @@ export const SHOP_ITEMS = [
     id: 'refill',
     name: '📦 Powerpack Case',
     cost: 1,
-    desc: 'Rip open for a full HP restore before the next op.',
+    desc: 'Rip open to stock a pack. Auto full-heal when you hit critical HP (or would die). Stacks.',
     consumable: true,
   },
 ];
