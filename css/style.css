@@ -316,6 +316,13 @@ h1 {
   margin-bottom: 0.35rem;
 }
 .shop-title-row h2 { margin: 0; }
+.shop-pills {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
 .shop-slabs-pill {
   display: flex;
   align-items: center;
@@ -835,9 +842,9 @@ h1 {
   }
   .hud-right {
     display: grid;
-    grid-template-columns: repeat(3, minmax(0, 1fr)) auto;
+    grid-template-columns: repeat(4, minmax(0, 1fr)) auto;
     align-items: stretch;
-    gap: 0.35rem;
+    gap: 0.3rem;
   }
   .hud-right .stat {
     min-width: 0;
@@ -1133,7 +1140,7 @@ h1 {
   }
   .hud-left { display: flex; align-items: stretch; }
   .hud-center { flex-direction: column; align-items: center; gap: 0.2rem; }
-  .hud-right { grid-template-columns: repeat(3, minmax(0, 1fr)) auto; }
+  .hud-right { grid-template-columns: repeat(4, minmax(0, 1fr)) auto; }
   #touch-controls {
     position: absolute;
     inset: auto 0 env(safe-area-inset-bottom, 0px) 0;

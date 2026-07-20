@@ -2,14 +2,14 @@
  * Buck's Sacred Mission — screens, shop, boot.
  */
 // Cache-bust query keeps iOS Safari from serving stale modules after deploys
-import { loadAll } from './assets.js?v=20260719c';
+import { loadAll } from './assets.js?v=20260720a';
 import {
   unlock as unlockAudio, muteToggle, isMuted, sfx,
   startMusic, stopMusic, loadOpener, playOpener, stopOpener, isOpenerPlaying,
   ensurePlayback, getAudioStatus,
-} from './audio.js?v=20260719c';
-import { LEVELS, SHOP_ITEMS, WIN_TEXT, ARMOR } from './data.js?v=20260719c';
-import { createGame } from './game.js?v=20260719c';
+} from './audio.js?v=20260720a';
+import { LEVELS, SHOP_ITEMS, WIN_TEXT, ARMOR } from './data.js?v=20260720a';
+import { createGame } from './game.js?v=20260720a';
 
 const $ = (s) => document.querySelector(s);
 
@@ -57,6 +57,7 @@ function persist() {
     score: state.meta.score,
     owned: state.meta.owned,
     dpsMul: state.meta.dpsMul,
+    stockedPacks: state.meta.stockedPacks || 0,
   }));
 }
 
@@ -71,6 +72,8 @@ const state = {
     score: saved.score || 0,
     owned: saved.owned || { socks: false, undies: false },
     dpsMul: saved.dpsMul || 1,
+    // Ripped powerpacks ready to auto-heal mid-mission
+    stockedPacks: Number(saved.stockedPacks) || 0,
     armor: 'none',
   },
   raf: 0,
@@ -157,7 +160,8 @@ function updateBriefing() {
     li.textContent = t;
     tips.appendChild(li);
   }
-  $('#brief-hp').textContent = '100';
+  const packs = state.meta.stockedPacks || 0;
+  $('#brief-hp').textContent = packs > 0 ? `100 · 📦${packs}` : '100';
   $('#brief-dps').textContent = `${(state.meta.dpsMul || 1).toFixed(2)}×`;
   $('#brief-armor').textContent = armorName();
   $('#brief-slabs').textContent = String(state.meta.slabs || 0);
@@ -176,6 +180,8 @@ function syncHud() {
   $('#hud-slabs').textContent = String(h.slabs);
   $('#hud-score').textContent = String(h.score);
   $('#hud-armor').textContent = h.armor;
+  const packsHud = $('#hud-packs');
+  if (packsHud) packsHud.textContent = String(h.packs || 0);
   $('#level-name').textContent = h.levelName;
   $('#objective').textContent = h.objective;
 
@@ -284,17 +290,28 @@ function openShop() {
 }
 
 function renderShop() {
-  $('#shop-slabs').textContent = String(state.meta.slabs || 0);
+  const packs = state.meta.stockedPacks || 0;
+  const slabsEl = $('#shop-slabs');
+  if (slabsEl) slabsEl.textContent = String(state.meta.slabs || 0);
+  // Pack readiness lives on the slabs pill when present
+  const packPill = $('#shop-packs');
+  if (packPill) packPill.textContent = String(packs);
+
   const grid = $('#shop-grid');
   grid.innerHTML = '';
   for (const item of SHOP_ITEMS) {
     const owned = !item.consumable && state.meta.owned[item.id];
     const el = document.createElement('div');
     el.className = 'shop-item' + (owned ? ' owned' : '');
+    const costLabel = owned
+      ? 'OWNED'
+      : item.consumable
+        ? `${item.cost} SLAB · ${packs} READY`
+        : `${item.cost} SLAB${item.cost === 1 ? '' : 'S'}`;
     el.innerHTML = `
       <h3>${item.name}</h3>
       <p>${item.desc}</p>
-      <div class="cost">${owned ? 'OWNED' : `${item.cost} SLAB${item.cost === 1 ? '' : 'S'}`}</div>
+      <div class="cost">${costLabel}</div>
       <button type="button" ${owned || state.meta.slabs < item.cost ? 'disabled' : ''}>
         ${owned ? 'EQUIPPED' : item.consumable ? 'RIP OPEN' : 'BUY'}
       </button>
@@ -305,13 +322,18 @@ function renderShop() {
       if (!item.consumable && state.meta.owned[item.id]) return;
       state.meta.slabs -= item.cost;
       if (item.consumable) {
-        // heal next deploy — store flag
-        state.meta.preHeal = true;
+        // Stock a mid-mission auto-heal charge (persists until used)
+        state.meta.stockedPacks = (state.meta.stockedPacks || 0) + 1;
+        delete state.meta.preHeal;
         sfx.pickup();
-      } else {
-        state.meta.owned[item.id] = true;
-        sfx.power();
+        btn.textContent = 'STOCKED ✓';
+        btn.disabled = true;
+        persist();
+        setTimeout(() => renderShop(), 280);
+        return;
       }
+      state.meta.owned[item.id] = true;
+      sfx.power();
       persist();
       renderShop();
     };
@@ -716,9 +738,8 @@ $('#btn-deploy').onclick = () => {
   activateAudio({ allowOpener: false });
   sfx.uiOk();
   startLevel();
-  if (state.meta.preHeal && state.game) {
-    state.meta.preHeal = false;
-    // full HP already on load; toast the rip
+  // Stocked packs arm inside loadLevel; toast if carrying any
+  if ((state.meta.stockedPacks || 0) > 0 && state.game) {
     sfx.pickup();
   }
 };
